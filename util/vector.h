@@ -49,6 +49,12 @@ public:
       return *this;
     }
 
+    iterator_base &operator--()
+    {
+      i_--;
+      return *this;
+    }
+
   private:
     int i_;
     QualifiedVector &vec_;
