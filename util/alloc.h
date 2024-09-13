@@ -61,6 +61,13 @@ template <typename T> inline void DeleteArray(T *arg, size_t size)
     release(static_cast<void *>(arg));
   }
 }
+namespace detail {
+const char *getMemoryTag(void *vmem);
+}
+template<typename T> static const char *getMemoryTag(T *mem) {
+  return detail::getMemoryTag(static_cast<void*>(mem));
+}
+
 bool print_blocks();
 int getMemorySize();
 

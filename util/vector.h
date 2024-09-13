@@ -75,6 +75,36 @@ public:
     }
   }
 
+  /** Initialize from an existing array of items.
+   *  Items in `items` will be moved into newly
+   *  allocated memory (or the local static
+   *  storage if `itemCount < static_size`).
+   */
+  Vector(T *items, int itemCount)
+  {
+    if (itemCount <= static_size) {
+      capacity_ = static_size;
+      size_ = 0;
+      data_ = reinterpret_cast<T*>(static_storage_);      
+      for (int i = 0; i < itemCount; i++) {
+        this->append(std::move(items[i]));
+      }
+    } else {
+      data_ = static_cast<T *>(alloc::alloc("Vector data", sizeof(T) * itemCount));
+      capacity_ = size_ = itemCount;
+
+      if constexpr (!is_simple<T>()) {
+        for (int i = 0; i < itemCount; i++) {
+          new (static_cast<void *>(data_ + i)) T(std::move(items[i]));
+        }
+      } else {
+        memcpy(static_cast<void *>(data_),
+               static_cast<void *>(items),
+               sizeof(T) * itemCount);
+      }
+    }
+  }
+
   Vector() : capacity_(static_size)
   {
     data_ = static_storage();
@@ -88,7 +118,9 @@ public:
 
   ~Vector()
   {
-    release_data(data_, size_);
+    if (data_ != nullptr) {
+      release_data(data_, size_);
+    }
   }
 
   Vector(const Vector &b)
@@ -200,14 +232,13 @@ public:
           data_[i] = std::move(b.data_[i]);
         }
       }
-
-      b.data_ = nullptr;
-      b.size_ = 0;
     } else {
       data_ = b.data_;
-      b.data_ = nullptr;
-      b.size_ = 0;
     }
+
+    b.capacity_ = 0;
+    b.data_ = nullptr;
+    b.size_ = 0;
   }
 
   DEFAULT_MOVE_ASSIGNMENT(Vector)
@@ -326,12 +357,12 @@ public:
 
   void append(const T &value)
   {
-    append_intern() = value;
+    new (static_cast<void *>(&append_intern())) T(value);
   }
 
   void append(T &&value)
   {
-    append_intern() = value;
+    new (static_cast<void *>(&append_intern())) T(std::forward<T &&>(value));
   }
 
   template <bool construct_destruct = true> void resize(size_t newsize)
@@ -452,6 +483,11 @@ private:
   T *data_ = nullptr;
   size_t size_ = 0;
   size_t capacity_ = 0;
+#ifdef WASM
+  // pad to eight bytes
+  // since pointer size is 4 on WASM.
+  int _pad;
+#endif
   uint8_t static_storage_[static_size * sizeof(T)];
 };
 

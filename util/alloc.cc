@@ -146,4 +146,15 @@ void release(void *ptr)
   free(static_cast<void*>(mem));
 }
 
+namespace detail {
+const char *getMemoryTag(void *vmem) {
+  if (!check_mem(vmem)) {
+    return nullptr;
+  }
+  MemHead *mem = static_cast<MemHead*>(vmem);
+  mem--;
+  return mem->tag;
+}
+}
+
 } // namespace litestl::alloc
