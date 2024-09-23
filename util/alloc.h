@@ -16,8 +16,37 @@
  */
 namespace litestl::alloc {
 
+#ifndef NO_DEBUG_ALLOC
 void *alloc(const char *tag, size_t size);
 void release(void *mem);
+bool print_blocks();
+int getMemorySize();
+
+namespace detail {
+const char *getMemoryTag(void *vmem);
+}
+template<typename T> static const char *getMemoryTag(T *mem) {
+  return detail::getMemoryTag(static_cast<void*>(mem));
+}
+
+#else
+static int getMemorySize() {
+  return -1;
+}
+static void *alloc(const char *tag, size_t size)
+{
+  return malloc(size);
+}
+static void release(void *mem) {
+  free(mem);
+}
+template<typename T> static const char *getMemoryTag(T *mem) {
+  return nullptr;
+}
+
+static bool print_blocks() {
+}
+#endif
 
 template <typename T, typename... Args> inline T *New(const char *tag, Args... args)
 {
@@ -61,14 +90,5 @@ template <typename T> inline void DeleteArray(T *arg, size_t size)
     release(static_cast<void *>(arg));
   }
 }
-namespace detail {
-const char *getMemoryTag(void *vmem);
-}
-template<typename T> static const char *getMemoryTag(T *mem) {
-  return detail::getMemoryTag(static_cast<void*>(mem));
-}
-
-bool print_blocks();
-int getMemorySize();
 
 }; // namespace litestl::alloc

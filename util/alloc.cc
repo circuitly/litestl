@@ -38,6 +38,7 @@ std::mutex mem_list_mutex;
 thread_local MemList mem_list;
 
 namespace litestl::alloc {
+#ifndef NO_DEBUG_ALLOC
 bool print_blocks()
 {
   MemHead *mem = mem_list.first;
@@ -156,5 +157,5 @@ const char *getMemoryTag(void *vmem) {
   return mem->tag;
 }
 }
-
+#endif
 } // namespace litestl::alloc
