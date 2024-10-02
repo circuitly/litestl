@@ -1,13 +1,13 @@
 #include "compiler_util.h"
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdint>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
-#include <memory>
 
 #define MAKE_TAG(a, b, c, d) (a | (b << 8) | (c << 16) | d << 24)
 #define TAG1 MAKE_TAG('t', 'a', 'g', '1')
@@ -23,10 +23,10 @@ struct MemHead {
   size_t size;
   const char *tag;
   struct MemList *list;
-  #ifdef WASM
+#ifdef WASM
   // pad to 8 bytes
   char _pad[4];
-  #endif
+#endif
 };
 static_assert(sizeof(MemHead) % 8 == 0);
 
@@ -34,7 +34,7 @@ struct MemList {
   MemHead *first, *last;
 };
 
-std::mutex mem_list_mutex;
+std::recursive_mutex mem_list_mutex;
 thread_local MemList mem_list;
 
 namespace litestl::alloc {
@@ -50,7 +50,8 @@ bool print_blocks()
   return mem_list.first;
 }
 
-int getMemorySize() {
+int getMemorySize()
+{
   return memorySize;
 }
 
@@ -92,14 +93,19 @@ bool check_mem(void *ptr)
     return false;
   }
 
+  if (reinterpret_cast<size_t>(ptr) < 1024) {
+    fprintf(stderr, "litestl::alloc::check_mem: invalid pointer\n");
+    return false;
+  }
+
   MemHead *mem = static_cast<MemHead *>(ptr);
   mem--;
 
   if (mem->tag1 == FREE) {
-    fprintf(stderr, "litestl::alloc::release: error: double free\n");
+    fprintf(stderr, "litestl::alloc::check_mem: error: double free\n");
     return false;
   } else if (mem->tag1 != TAG1 || mem->tag2 != TAG2) {
-    fprintf(stderr, "litestl::alloc::release: error: invalid memory block\n");
+    fprintf(stderr, "litestl::alloc::check_mem: error: invalid memory block\n");
     return false;
   }
 
@@ -109,8 +115,11 @@ bool check_mem(void *ptr)
 void release(void *ptr)
 {
   if (!ptr) {
+    fprintf(stderr, "Null pointer dereference\n");
     return;
   }
+
+  std::lock_guard guard(mem_list_mutex);
 
   if (!check_mem(ptr)) {
     return;
@@ -119,10 +128,17 @@ void release(void *ptr)
   MemHead *mem = static_cast<MemHead *>(ptr);
   mem--;
 
+  if (mem->next && !check_mem(static_cast<void *>(mem->next + 1))) {
+    fprintf(stderr, "corrupted heap\n");
+    return;
+  }
+  if (mem->prev && !check_mem(static_cast<void *>(mem->prev + 1))) {
+    fprintf(stderr, "corrupted heap\n");
+    return;
+  }
+
   mem->tag1 = FREE;
 
-  std::lock_guard guard(mem_list_mutex);
-  
   memorySize -= mem->size + sizeof(MemHead);
 
   /* Unlink from list. */
@@ -144,18 +160,19 @@ void release(void *ptr)
     mem->prev->next = mem->next;
   }
 
-  free(static_cast<void*>(mem));
+  free(static_cast<void *>(mem));
 }
 
 namespace detail {
-const char *getMemoryTag(void *vmem) {
+const char *getMemoryTag(void *vmem)
+{
   if (!check_mem(vmem)) {
     return nullptr;
   }
-  MemHead *mem = static_cast<MemHead*>(vmem);
+  MemHead *mem = static_cast<MemHead *>(vmem);
   mem--;
   return mem->tag;
 }
-}
+} // namespace detail
 #endif
 } // namespace litestl::alloc

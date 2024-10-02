@@ -11,7 +11,7 @@
 #include <utility>
 
 namespace litestl::util {
-template <typename T, int static_size = 4> class Vector {
+template <typename T, int static_size = 1> class Vector {
 public:
   using value_type = T;
 
@@ -85,7 +85,7 @@ public:
     if (itemCount <= static_size) {
       capacity_ = static_size;
       size_ = 0;
-      data_ = reinterpret_cast<T*>(static_storage_);      
+      data_ = reinterpret_cast<T *>(static_storage_);
       for (int i = 0; i < itemCount; i++) {
         this->append(std::move(items[i]));
       }
@@ -217,6 +217,8 @@ public:
     return *this;
   }
 
+  DEFAULT_MOVE_ASSIGNMENT(Vector)
+
   Vector(Vector &&b)
   {
     size_ = b.size_;
@@ -232,6 +234,10 @@ public:
           data_[i] = std::move(b.data_[i]);
         }
       }
+
+      if (b.data_ != b.static_storage()) {
+        alloc::release(static_cast<void *>(b.data_));
+      }
     } else {
       data_ = b.data_;
     }
@@ -240,8 +246,6 @@ public:
     b.data_ = nullptr;
     b.size_ = 0;
   }
-
-  DEFAULT_MOVE_ASSIGNMENT(Vector)
 
 public:
   const_iterator begin() const
@@ -271,12 +275,21 @@ public:
   {
     size_--;
 
-    T ret = data_[size_];
-
+    T ret = std::move(data_[size_]);
     if constexpr (!is_simple<T>()) {
       data_[size_].~T();
     }
 
+    return ret;
+  }
+
+  T pop_front()
+  {
+    T ret = std::move(data_[0]);
+    for (int i = 0; i < size_ - 1; i++) {
+      data_[i] = std::move(data_[i + 1]);
+    }
+    size_--;
     return ret;
   }
 
@@ -365,6 +378,11 @@ public:
     new (static_cast<void *>(&append_intern())) T(std::forward<T &&>(value));
   }
 
+  void ensure_capacity(size_t size)
+  {
+    ensure_size(size);
+  }
+
   template <bool construct_destruct = true> void resize(size_t newsize)
   {
     size_t remain = 0;
@@ -444,16 +462,15 @@ private:
     size_t new_capacity = (newsize + 1) << 1;
     new_capacity -= newsize >> 1;
     capacity_ = new_capacity;
-
     T *old = data_;
+
     data_ = static_cast<T *>(
-        static_cast<void *>(alloc::alloc("Vector alloc", new_capacity * sizeof(T))));
+        static_cast<void *>(alloc::alloc("Vector data", new_capacity * sizeof(T))));
 
     if constexpr (is_simple<T>()) {
       memcpy(static_cast<void *>(data_), static_cast<void *>(old), sizeof(T) * size_);
     } else {
       for (int i = 0; i < size_; i++) {
-        // data_[i] = std::move(old[i]);
         new (static_cast<void *>(data_ + i)) T(std::move(old[i]));
       }
     }

@@ -6,11 +6,141 @@
 #include "util/index_range.h"
 #include "util/vector.h"
 
+#include <chrono>
 #include <condition_variable>
 #include <functional>
+#include <mutex>
 #include <thread>
+#include <condition_variable>
 
 namespace litestl::task {
+using ThreadMain = std::function<void()>;
+using litestl::util::Vector;
+
+namespace detail {
+struct TaskWorker {
+  Vector<ThreadMain> queue;
+  std::recursive_mutex mutex;
+  std::mutex wait_mutex;
+  std::condition_variable cv;
+  bool running = false;
+
+  TaskWorker()
+  {
+  }
+
+  void start()
+  {
+    {
+      std::lock_guard guard(mutex);
+      if (running) {
+        return;
+      }
+      running = true;
+    }
+
+    std::thread *thread = new std::thread([&]() { this->run(); });
+    thread->detach();
+    delete thread;
+  }
+
+  void run() {
+    while (1) {
+      while (!this->empty()) {
+        ThreadMain main = this->pop();
+        main();
+      }
+      
+      {
+        std::lock_guard guard(mutex);
+        if (queue.size() == 0) {
+          std::unique_lock lock(wait_mutex);
+          cv.wait(lock);
+        }
+      }
+    }
+  }
+
+  void run_old()
+  {
+    using namespace std::chrono_literals;
+
+    while (!this->empty()) {
+      ThreadMain main = this->pop();
+      main();
+    }
+
+    bool empty;
+    {
+      std::lock_guard guard(mutex);
+      empty = this->empty();
+      if (empty) {
+        running = false;
+      }
+    }
+
+    if (!empty) {
+      run();
+    }
+  }
+
+  int size()
+  {
+    return queue.size();
+  }
+  void push(ThreadMain main)
+  {
+    {
+      std::lock_guard guard(mutex);
+      queue.append(main);
+      if (queue.size() == 1) {
+        cv.notify_all();
+      }
+    }
+
+    if (!running) {
+      //start();
+    }
+  }
+  ThreadMain pop()
+  {
+    std::lock_guard guard(mutex);
+    ThreadMain ret = queue.pop_back();
+    return ret;
+  }
+  bool empty()
+  {
+    std::lock_guard guard(mutex);
+    return queue.size() == 0;
+  }
+};
+
+TaskWorker workers[8];
+int curWorker = 0;
+
+TaskWorker &getWorker()
+{
+  int minWorker = 0;
+  int minCount = workers[0].size();
+
+  for (int i = 0; i < array_size(workers); i++) {
+    if (workers[i].size() < minCount) {
+      minWorker = i;
+      minCount = workers[i].size();
+    }
+  }
+
+  printf("using worker %ds\n", minWorker);
+  return workers[minWorker];
+}
+
+} // namespace detail
+
+template <typename Callback> static void run(Callback cb)
+{
+  detail::getWorker().push(cb);
+}
+
 /* [&](IndexRange range) {} */
 template <typename Callback>
 void parallel_for(util::IndexRange range, Callback cb, int grain_size = 1)
