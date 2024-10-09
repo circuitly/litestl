@@ -436,6 +436,19 @@ public:
     return data_;
   }
 
+  /** 
+   *  Reverses the vector in-place. 
+   *  Returns a reference to *this.
+   */
+  Vector<T, static_size> &reverse()
+  {
+    int size = size_ >> 1;
+    for (int i = 0; i < size; i++) {
+      std::swap(this[i], this[size_ - i - 1]);
+    }
+    return *this;
+  }
+
 private:
   inline void deconstruct_all()
   {
