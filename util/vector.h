@@ -1,6 +1,7 @@
 #pragma once
 #include "alloc.h"
 #include "compiler_util.h"
+#include "concepts.h"
 #include <concepts>
 #include <cstdint>
 #include <cstdio>
@@ -235,7 +236,7 @@ public:
         }
       }
 
-      if (b.data_ != b.static_storage()) {
+      if (b.data_ && b.data_ != b.static_storage()) {
         alloc::release(static_cast<void *>(b.data_));
       }
     } else {
@@ -436,15 +437,15 @@ public:
     return data_;
   }
 
-  /** 
-   *  Reverses the vector in-place. 
+  /**
+   *  cs the vector in-place.
    *  Returns a reference to *this.
    */
   Vector<T, static_size> &reverse()
   {
     int size = size_ >> 1;
     for (int i = 0; i < size; i++) {
-      std::swap(this[i], this[size_ - i - 1]);
+      std::swap(data_[i], data_[size_ - i - 1]);
     }
     return *this;
   }
