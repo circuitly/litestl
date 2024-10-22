@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef LITESTL_WORKERS_COUNT
+#define LITESTL_WORKERS_COUNT 6
+#endif
+
 #include "platform/cpu.h"
 #include "platform/time.h"
 #include "util/alloc.h"
@@ -11,7 +15,6 @@
 #include <functional>
 #include <mutex>
 #include <thread>
-#include <condition_variable>
 
 namespace litestl::task {
 using ThreadMain = std::function<void()>;
@@ -24,9 +27,15 @@ struct TaskWorker {
   std::mutex wait_mutex;
   std::condition_variable cv;
   bool running = false;
+  bool stop_ = false;
 
   TaskWorker()
   {
+  }
+
+  void stop()
+  {
+    stop_ = true;
   }
 
   void start()
@@ -44,19 +53,31 @@ struct TaskWorker {
     delete thread;
   }
 
-  void run() {
+  void run()
+  {
+    using namespace std::chrono_literals;
+
     while (1) {
       while (!this->empty()) {
         ThreadMain main = this->pop();
         main();
       }
-      
+
+      int size = 0;
       {
         std::lock_guard guard(mutex);
-        if (queue.size() == 0) {
-          std::unique_lock lock(wait_mutex);
-          cv.wait(lock);
+        size = queue.size();
+        if (stop_ && !size) {
+          break;
         }
+      }
+
+      if (size == 0) {
+        std::unique_lock lock(wait_mutex);
+        const std::chrono::time_point<std::chrono::steady_clock> start =
+            std::chrono::steady_clock::now();
+
+        cv.wait_until(lock, start + 2ms);
       }
     }
   }
@@ -90,16 +111,25 @@ struct TaskWorker {
   }
   void push(ThreadMain main)
   {
+    bool notify = false;
+
     {
       std::lock_guard guard(mutex);
       queue.append(main);
       if (queue.size() == 1) {
-        cv.notify_all();
+        notify = true;
       }
     }
 
-    if (!running) {
-      //start();
+    if (running && notify) {
+      cv.notify_all();
+    }
+
+    {
+      std::lock_guard guard(mutex);
+      if (!running) {
+        start();
+      }
     }
   }
   ThreadMain pop()
@@ -115,11 +145,13 @@ struct TaskWorker {
   }
 };
 
-TaskWorker workers[8];
-int curWorker = 0;
+extern TaskWorker workers[LITESTL_WORKERS_COUNT];
+extern int curWorker;
+extern std::recursive_mutex curWorkerMutex;
 
-TaskWorker &getWorker()
+static TaskWorker &getWorker()
 {
+#if 0
   int minWorker = 0;
   int minCount = workers[0].size();
 
@@ -132,13 +164,28 @@ TaskWorker &getWorker()
 
   printf("using worker %ds\n", minWorker);
   return workers[minWorker];
+#else
+  std::lock_guard guard(curWorkerMutex);
+
+  int worker = curWorker;
+  // printf("using worker %d (with %d outstanding tasks)\n", worker,
+  // workers[worker].size());
+  curWorker = (curWorker + 1) % array_size(workers);
+  return workers[worker];
+#endif
 }
 
 } // namespace detail
 
 template <typename Callback> static void run(Callback cb)
 {
+#if 0
+   auto *thread = new std::thread(cb);
+   thread->detach();
+   delete thread;
+#else
   detail::getWorker().push(cb);
+#endif
 }
 
 /* [&](IndexRange range) {} */

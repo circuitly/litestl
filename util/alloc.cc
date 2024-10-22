@@ -1,3 +1,4 @@
+#include "atomicLinkedList.h"
 #include "compiler_util.h"
 #include <algorithm>
 #include <atomic>
@@ -14,15 +15,25 @@
 #define TAG2 MAKE_TAG('t', 'a', 'g', '2')
 #define FREE MAKE_TAG('f', 'r', 'e', 'e')
 
-int memorySize = 0;
-struct MemList;
+std::atomic<int> memorySize = {0};
 
 struct MemHead {
   int tag1, tag2;
+
+  // MemHeads are their own nodes
   struct MemHead *next, *prev;
+  struct MemHead *data()
+  {
+    return this;
+  }
+  static MemHead *wrapData(MemHead *mh)
+  {
+    return mh;
+  }
+
   size_t size;
   const char *tag;
-  struct MemList *list;
+  void *listref;
 #ifdef WASM
   // pad to 8 bytes
   char _pad[4];
@@ -30,29 +41,42 @@ struct MemHead {
 };
 static_assert(sizeof(MemHead) % 8 == 0);
 
-struct MemList {
-  MemHead *first, *last;
-};
+using MemList = litestl::util::AtomicLinkedList<MemHead *, MemHead>;
 
-std::recursive_mutex mem_list_mutex;
-thread_local MemList mem_list;
+/**
+ * Each thread creates its own list of memory blocks.
+ * We allow these to leak when threads are destroyed
+ * (remember the actual memory blocks are kept alive)
+ * though this shouldn't happen if you use the
+ * `litestil::task` api.
+ */
+thread_local MemList *atomic_mem_list = nullptr;
 
+static MemList *getMemList()
+{
+  if (!atomic_mem_list) {
+    atomic_mem_list = new MemList();
+  }
+  return atomic_mem_list;
+}
 namespace litestl::alloc {
 #ifndef NO_DEBUG_ALLOC
 bool print_blocks()
 {
-  MemHead *mem = mem_list.first;
+  std::lock_guard guard(getMemList()->mutex);
+
+  MemHead *mem = getMemList()->first;
   while (mem) {
     printf("\"%s:%d\"  (%p)\n", mem->tag, int(mem->size), mem + 1);
     mem = mem->next;
   }
 
-  return mem_list.first;
+  return getMemList()->first != nullptr;
 }
 
 int getMemorySize()
 {
-  return memorySize;
+  return memorySize.load();
 }
 
 void *alloc(const char *tag, size_t size)
@@ -69,20 +93,9 @@ void *alloc(const char *tag, size_t size)
   mem->tag2 = TAG2;
   mem->tag = tag;
   mem->size = size;
-
-  mem->next = mem->prev = nullptr;
-
-  std::lock_guard guard(mem_list_mutex);
-
-  if (!mem_list.first) {
-    mem_list.first = mem_list.last = mem;
-  } else {
-    mem_list.last->next = mem;
-    mem->prev = mem_list.last;
-    mem_list.last = mem;
-  }
-
-  memorySize += mem->size + sizeof(MemHead);
+  mem->listref = static_cast<void *>(getMemList());
+  std::atomic_fetch_add(&memorySize, mem->size + sizeof(MemHead));
+  getMemList()->push(std::move(mem));
 
   return reinterpret_cast<void *>(mem + 1);
 }
@@ -119,8 +132,6 @@ void release(void *ptr)
     return;
   }
 
-  std::lock_guard guard(mem_list_mutex);
-
   if (!check_mem(ptr)) {
     return;
   }
@@ -128,6 +139,10 @@ void release(void *ptr)
   MemHead *mem = static_cast<MemHead *>(ptr);
   mem--;
 
+  MemList *list = static_cast<MemList *>(mem->listref);
+
+#if 0
+  std::lock_guard guard(list->mutex);
   if (mem->next && !check_mem(static_cast<void *>(mem->next + 1))) {
     fprintf(stderr, "corrupted heap\n");
     return;
@@ -136,29 +151,13 @@ void release(void *ptr)
     fprintf(stderr, "corrupted heap\n");
     return;
   }
+#endif
 
   mem->tag1 = FREE;
 
-  memorySize -= mem->size + sizeof(MemHead);
-
   /* Unlink from list. */
-  if (mem_list.last == mem) {
-    mem_list.last = mem->prev;
-    if (mem_list.last) {
-      mem_list.last->next = nullptr;
-    }
-  } else {
-    mem->next->prev = mem->prev;
-  }
-
-  if (mem_list.first == mem) {
-    mem_list.first = mem->next;
-    if (mem_list.first) {
-      mem_list.first->prev = nullptr;
-    }
-  } else {
-    mem->prev->next = mem->next;
-  }
+  list->remove(mem);
+  std::atomic_fetch_sub(&memorySize, mem->size + sizeof(MemHead));
 
   free(static_cast<void *>(mem));
 }

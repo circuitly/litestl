@@ -19,7 +19,9 @@ namespace litestl::alloc {
 #ifndef NO_DEBUG_ALLOC
 void *alloc(const char *tag, size_t size);
 void release(void *mem);
+/** prints all the blocks allocated by this thread. */
 bool print_blocks();
+/** returns the total memory allocated by all threads. */
 int getMemorySize();
 
 namespace detail {

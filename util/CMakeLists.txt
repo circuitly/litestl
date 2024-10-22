@@ -20,6 +20,7 @@ set(SRC
   PUBLIC memory.h
   alloc.cc
   util.cc
+  task.cc
   string.cc
 )
 
