@@ -10,10 +10,16 @@
 #include <thread>
 #include <vector>
 
+#ifdef WASM
+#include "wasm.h"
+#endif
+
 #define MAKE_TAG(a, b, c, d) (a | (b << 8) | (c << 16) | d << 24)
 #define TAG1 MAKE_TAG('t', 'a', 'g', '1')
 #define TAG2 MAKE_TAG('t', 'a', 'g', '2')
 #define FREE MAKE_TAG('f', 'r', 'e', 'e')
+
+//#define ALLOC_SAVE_STACK_TRACES
 
 std::atomic<int> memorySize = {0};
 
@@ -88,6 +94,10 @@ void *alloc(const char *tag, size_t size)
     fprintf(stderr, "allocation error of size %d\n", int(size));
     return nullptr;
   }
+
+  #if defined(ALLOC_SAVE_STACK_TRACES) && defined(WASM)
+  tag = litestl::util::wasm::getStackTrace(tag);
+  #endif
 
   mem->tag1 = TAG1;
   mem->tag2 = TAG2;

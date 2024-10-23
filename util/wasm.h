@@ -14,6 +14,7 @@ static const char *getStackTrace(const char *prefix)
     // #ifdef WASM
     EM_ASM(
         {
+          //Error.stackTraceLimit = 120;
           let error;
           try {
             throw new Error();
