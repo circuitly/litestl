@@ -226,7 +226,7 @@ public:
 
   Map()
       : table_(get_static(), hashsizes[find_hashsize_prev(real_static_size)]),
-        cur_size_(find_hashsize(real_static_size))
+        cur_size_(find_hashsize_prev(real_static_size))
   {
     reserve_usedmap();
   }
@@ -454,9 +454,11 @@ public:
   }
 
 private:
+  using MyBoolVector = BoolVector<static_size * 3 + 1>;
+
   std::span<Pair> table_;
   char *static_storage_[real_static_size * sizeof(Pair)];
-  BoolVector<> used_;
+  MyBoolVector used_;
   int cur_size_ = 0;
   int used_count_ = 0;
 
@@ -557,7 +559,7 @@ private:
     printf("newsize: %d\n", int(newsize));
 
     std::span<Pair> old = table_;
-    BoolVector<> old_used = used_;
+    MyBoolVector old_used = used_;
 
     table_ = std::span(static_cast<Pair *>(alloc::alloc("sculpecore::util::map table",
                                                         newsize * sizeof(Pair))),

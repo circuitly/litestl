@@ -19,8 +19,6 @@
 #define TAG2 MAKE_TAG('t', 'a', 'g', '2')
 #define FREE MAKE_TAG('f', 'r', 'e', 'e')
 
-//#define ALLOC_SAVE_STACK_TRACES
-
 std::atomic<int> memorySize = {0};
 
 struct MemHead {
@@ -95,9 +93,9 @@ void *alloc(const char *tag, size_t size)
     return nullptr;
   }
 
-  #if defined(ALLOC_SAVE_STACK_TRACES) && defined(WASM)
+#if defined(ALLOC_SAVE_STACK_TRACES) && defined(WASM)
   tag = litestl::util::wasm::getStackTrace(tag);
-  #endif
+#endif
 
   mem->tag1 = TAG1;
   mem->tag2 = TAG2;
@@ -168,6 +166,10 @@ void release(void *ptr)
   /* Unlink from list. */
   list->remove(mem);
   std::atomic_fetch_sub(&memorySize, mem->size + sizeof(MemHead));
+
+#if defined(ALLOC_SAVE_STACK_TRACES) && defined(WASM)
+  free(static_cast<void *>(const_cast<char *>(mem->tag)));
+#endif
 
   free(static_cast<void *>(mem));
 }
