@@ -72,6 +72,13 @@ public:
     }
   }
 
+  Vec(Vec &b)
+  {
+    for (int i = 0; i < vec_size; i++) {
+      vec_[i] = b.vec_[i];
+    }
+  }
+
   inline Vec &zero()
   {
     for (int i = 0; i < vec_size; i++) {
@@ -96,7 +103,7 @@ public:
 #endif
 
 #define VEC_OP_DEF(op)                                                                   \
-  inline Vec operator op(const Vec &b) const                                                \
+  inline Vec operator op(const Vec &b) const                                             \
   {                                                                                      \
     Vec r;                                                                               \
     for (int i = 0; i < vec_size; i++) {                                                 \
@@ -104,7 +111,7 @@ public:
     }                                                                                    \
     return r;                                                                            \
   }                                                                                      \
-  inline Vec operator op(T b) const                                                          \
+  inline Vec operator op(T b) const                                                      \
   {                                                                                      \
     Vec r;                                                                               \
     for (int i = 0; i < vec_size; i++) {                                                 \
@@ -112,14 +119,14 @@ public:
     }                                                                                    \
     return r;                                                                            \
   }                                                                                      \
-  inline Vec &operator op##=(T b)                                                       \
+  inline Vec &operator op##=(T b)                                                        \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b;                                                                  \
     }                                                                                    \
     return *this;                                                                        \
   }                                                                                      \
-  inline Vec &operator op##=(const Vec b)                                               \
+  inline Vec &operator op##=(const Vec b)                                                \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b.vec_[i];                                                          \
@@ -159,6 +166,42 @@ public:
     return *this;
   }
 
+  Vec &floor()
+  {
+    for (int i = 0; i < vec_size; i++) {
+      vec_[i] = std::floor(vec_[i]);
+    }
+
+    return *this;
+  }
+
+  Vec &ceil()
+  {
+    for (int i = 0; i < vec_size; i++) {
+      vec_[i] = std::ceil(vec_[i]);
+    }
+
+    return *this;
+  }
+
+  Vec &abs()
+  {
+    for (int i = 0; i < vec_size; i++) {
+      vec_[i] = std::abs(vec_[i]);
+    }
+
+    return *this;
+  }
+
+  Vec &fract()
+  {
+    for (int i = 0; i < vec_size; i++) {
+      vec_[i] -= std::floor(vec_[i]);
+    }
+
+    return *this;
+  }
+
   T dot(const Vec &b)
   {
     T sum = T(0);
@@ -191,29 +234,33 @@ public:
     return std::sqrt(dot(*this));
   }
 
-  T lengthSqr() {
+  T lengthSqr()
+  {
     return dot(*this);
   }
 
-  T distance(const Vec &b) {
+  T distance(const Vec &b)
+  {
     return std::sqrt(distanceSqr(b));
   }
 
-  T distanceSqr(const Vec &b) {
+  T distanceSqr(const Vec &b)
+  {
     return (b - *this).lengthSqr();
   }
 
-  Vec &rotate2d(Vec center, double th) {
-    if constexpr(vec_size > 1) {
+  Vec &rotate2d(Vec center, double th)
+  {
+    if constexpr (vec_size > 1) {
       double cosTh = std::cos(th);
       double sinTh = std::sin(th);
       double x = vec_[0] - center[0];
       double y = vec_[1] - center[1];
 
-      vec_[0] = cosTh*x - sinTh*y;
-      vec_[1] = cosTh*y + sinTh*x;
+      vec_[0] = cosTh * x - sinTh * y;
+      vec_[1] = cosTh * y + sinTh * x;
     }
-    
+
     return *this;
   }
 
@@ -253,15 +300,15 @@ private:
 } // namespace litestl::math
 
 #define DEF_VECS(type, name)                                                             \
-  namespace litestl::math {                                                           \
+  namespace litestl::math {                                                              \
   using name##1 = Vec<type, 1>;                                                          \
   using name##2 = Vec<type, 2>;                                                          \
   using name##3 = Vec<type, 3>;                                                          \
   using name##4 = Vec<type, 4>;                                                          \
   }                                                                                      \
-  force_type_is_simple(litestl::math::name##1);                                       \
-  force_type_is_simple(litestl::math::name##2);                                       \
-  force_type_is_simple(litestl::math::name##3);                                       \
+  force_type_is_simple(litestl::math::name##1);                                          \
+  force_type_is_simple(litestl::math::name##2);                                          \
+  force_type_is_simple(litestl::math::name##3);                                          \
   force_type_is_simple(litestl::math::name##4);
 
 DEF_VECS(float, float);

@@ -2,63 +2,275 @@
 #include "alloc.h"
 #include "compiler_util.h"
 #include "concepts.h"
+#include "index_range.h"
+#include <algorithm>
 #include <concepts>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
+#include <ranges>
 #include <span>
 #include <type_traits>
 #include <utility>
 
+template <typename Iter, typename QualVec, typename QualT>
+static Iter operator+(int n, const Iter &b)
+{
+  return Iter(b.vector(), n + b.index());
+}
 namespace litestl::util {
+
+template <typename BASE, typename ITEM>
+concept VectorSortComparator = requires(BASE base, const ITEM &a, const ITEM &b)
+{
+  {
+    base(a, b)
+  }
+  ->std::convertible_to<std::int32_t>;
+};
+
+namespace detail {
+template <typename T, VectorSortComparator<T> CB> struct Comparator {
+  CB &cb;
+
+  Comparator(CB &cb_) : cb(cb_)
+  {
+    //
+  }
+
+  bool operator()(const T &a, const T &b)
+  {
+    return cb(a, b) < 0;
+  }
+};
+} // namespace detail
+
 template <typename T, int static_size = 1> class Vector {
 public:
   using value_type = T;
 
-  template <typename QualifiedVector, typename QualT> struct iterator_base {
-    iterator_base(QualifiedVector &vec, int i) : i_(i), vec_(vec)
+  template <typename Iter> struct iterator_diff {
+    flatten_inline iterator_diff()
+    {
+    }
+    flatten_inline iterator_diff(int i) : i_(i)
+    {
+    }
+    flatten_inline iterator_diff(const iterator_diff &b) : i_(b.i_)
     {
     }
 
-    iterator_base(const iterator_base &b) : i_(b.i_), vec_(b.vec_)
+    operator int()
     {
+      return i_;
     }
 
-    bool operator==(const iterator_base &b)
+    flatten_inline iterator_diff &operator=(iterator_diff &b)
     {
-      return b.i_ == i_;
+      i_ = b.i_;
+      return *this;
     }
-    bool operator!=(const iterator_base &b)
+    flatten_inline iterator_diff &operator=(int b)
     {
-      return b.i_ != i_;
-    }
-
-    QualT &operator*()
-    {
-      return vec_[i_];
-    }
-
-    const QualT &operator*() const
-    {
-      return vec_[i_];
-    }
-
-    iterator_base &operator++()
-    {
-      i_++;
+      i_ = b;
       return *this;
     }
 
-    iterator_base &operator--()
+    flatten_inline Iter operator+(const Iter &b) const
     {
-      i_--;
+      return Iter(b.vector(), i_ + b.index());
+    }
+    flatten_inline iterator_diff operator+(const iterator_diff &b) const
+    {
+      return iterator_diff(i_ + b.i_);
+    }
+    flatten_inline iterator_diff operator+(int b) const
+    {
+      return iterator_diff(i_ + b);
+    }
+    flatten_inline iterator_diff &operator+=(const Iter &b)
+    {
+      i_ += b.index();
       return *this;
+    }
+    flatten_inline iterator_diff &operator+=(const iterator_diff &b)
+    {
+      i_ += b.i_;
+      return *this;
+    }
+    flatten_inline iterator_diff &operator+=(int b)
+    {
+      i_ += b;
+      return *this;
+    }
+
+    flatten_inline Iter operator-(const Iter &b) const
+    {
+      return Iter(b.vector(), i_ - b.index());
+    }
+    flatten_inline iterator_diff operator-(const iterator_diff &b) const
+    {
+      return iterator_diff(i_ - b.i_);
+    }
+    flatten_inline iterator_diff operator-(int b) const
+    {
+      return iterator_diff(i_ - b);
+    }
+    flatten_inline iterator_diff &operator-=(const Iter &b)
+    {
+      i_ -= b.index();
+      return *this;
+    }
+    flatten_inline iterator_diff &operator-=(const iterator_diff &b)
+    {
+      i_ -= b.i_;
+      return *this;
+    }
+    flatten_inline iterator_diff &operator-=(int b)
+    {
+      i_ -= b;
+      return *this;
+    }
+
+    flatten_inline auto operator<=>(const iterator_diff &b) const
+    {
+      return i_ <=> b.i_;
+    }
+
+    flatten_inline int value() const
+    {
+      return i_;
     }
 
   private:
     int i_;
-    QualifiedVector &vec_;
+  };
+  template <typename QualifiedVector, typename QualT> struct iterator_base {
+    using difference_type = int;
+    using value_type = QualT;
+
+    flatten_inline QualifiedVector &vector()
+    {
+      return *vec_;
+    }
+    flatten_inline int index()
+    {
+      return i_;
+    }
+
+    // default constructor deliberately creates uninitialized memory
+    flatten_inline iterator_base()
+    {
+    }
+
+    flatten_inline iterator_base(QualifiedVector &vec, int i) : i_(i), vec_(&vec)
+    {
+    }
+
+    flatten_inline iterator_base(const iterator_base &b) : i_(b.i_), vec_(b.vec_)
+    {
+    }
+
+    flatten_inline iterator_base(iterator_base &&b) : i_(b.i_), vec_(b.vec_)
+    {
+      b.vec_ = nullptr;
+    }
+
+    iterator_base &operator=(const iterator_base &b)
+    {
+      i_ = b.i_;
+      vec_ = b.vec_;
+      return *this;
+    }
+    iterator_base &operator=(iterator_base &&b)
+    {
+      i_ = b.i_;
+      vec_ = b.vec_;
+      b.vec_ = nullptr;
+      return *this;
+    }
+
+    flatten_inline bool operator==(const iterator_base &b) const
+    {
+      return b.i_ == i_;
+    }
+    flatten_inline bool operator!=(const iterator_base &b) const
+    {
+      return b.i_ != i_;
+    }
+
+    flatten_inline QualT &operator*() const
+    {
+      return vec_->data_[i_];
+    }
+    // preincrement
+    flatten_inline iterator_base &operator++()
+    {
+      iterator_base a = 5 - *this;
+      i_++;
+      return *this;
+    }
+    // postincrement
+    flatten_inline iterator_base operator++(int arg)
+    {
+      i_++;
+      return iterator_base(vec_, i_ - 1);
+    }
+    // preincrement
+    flatten_inline iterator_base &operator--()
+    {
+      i_--;
+      return *this;
+    }
+    // postincrement
+    flatten_inline iterator_base operator--(int arg)
+    {
+      i_--;
+      return iterator_base(vec_, i_ + 1);
+    }
+
+    flatten_inline auto operator<=>(const iterator_base &b) const
+    {
+      return i_ <=> b.i_;
+    }
+
+    flatten_inline iterator_base &operator+=(difference_type b)
+    {
+      i_ += b;
+      return *this;
+    }
+    flatten_inline iterator_base &operator-=(difference_type b)
+    {
+      i_ -= b;
+      return *this;
+    }
+
+    flatten_inline QualT &operator[](int i) const
+    {
+      return vec_->data_[i];
+    }
+
+
+    friend difference_type operator-(const iterator_base &a, const iterator_base &b) {
+          return a.i_ - b.i_;
+    }
+    friend iterator_base operator+(int n, const iterator_base &b) {
+          return iterator_base(*b.vec_, n + b.i_);
+    }
+    friend iterator_base operator+(const iterator_base &b, int n) {
+          return iterator_base(*b.vec_, b.i_ + n);
+    }
+    friend iterator_base operator-(int n, const iterator_base &b) {
+          return iterator_base(*b.vec_, n - b.i_);
+    }
+    friend iterator_base operator-(const iterator_base &b, int n) {
+          return iterator_base(*b.vec_, b.i_ - n);
+    }
+
+  private:
+    int i_;
+    QualifiedVector *vec_;
   };
 
   using iterator = iterator_base<Vector, T>;
@@ -150,6 +362,21 @@ public:
   {
     deconstruct_all();
     contract();
+  }
+
+  template <VectorSortComparator<T> CB> void sort(CB cb)
+  {
+    std::ranges::sort(
+        iterator(*this, 0), iterator(*this, size_), detail::Comparator<T, CB>(cb));
+  }
+  void sort()
+  {
+    std::ranges::sort(iterator(*this, 0), iterator(*this, size_), std::ranges::less());
+  }
+
+  bool hasStaticStorage() const
+  {
+    return data_ == reinterpret_cast<const T *>(static_storage_);
   }
 
   /** Reallocates vector to have no spare capacity. */
@@ -451,7 +678,7 @@ public:
   }
 
 private:
-  inline void deconstruct_all()
+  flatten_inline void deconstruct_all()
   {
     if constexpr (!is_simple<T>()) {
       for (int i = 0; i < size_; i++) {
@@ -506,7 +733,7 @@ private:
     }
   }
 
-  inline T *static_storage()
+  flatten_inline T *static_storage()
   {
     return reinterpret_cast<T *>(static_storage_);
   }
