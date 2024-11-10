@@ -406,6 +406,8 @@ public:
     }
 
     if (!used_[i]) {
+      // use placement new instead of assignment
+      new (static_cast<void *>(&table_[i].key)) Key(key);
       used_.set(i, true);
       used_count_++;
       return true;
@@ -555,8 +557,6 @@ private:
     }
 
     size_t newsize = hashsizes[cur_size_];
-
-    printf("newsize: %d\n", int(newsize));
 
     std::span<Pair> old = table_;
     MyBoolVector old_used = used_;

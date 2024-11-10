@@ -18,7 +18,7 @@ public:
   {
   }
 
-  Vec(T a, T b)
+  constexpr Vec(T a, T b)
   {
     vec_[0] = a;
     vec_[1] = b;
@@ -28,7 +28,7 @@ public:
     }
   }
 
-  Vec(T a, T b, T c)
+  constexpr Vec(T a, T b, T c)
   {
     vec_[0] = a;
     vec_[1] = b;
@@ -39,7 +39,7 @@ public:
     }
   }
 
-  Vec(T a, T b, T c, T d)
+  constexpr Vec(T a, T b, T c, T d)
   {
     vec_[0] = a;
     vec_[1] = b;
@@ -51,35 +51,35 @@ public:
     }
   }
 
-  Vec(T single)
+  constexpr Vec(T single)
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = single;
     }
   }
 
-  Vec(const T *value)
+  constexpr Vec(const T *value)
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = value[i];
     }
   }
 
-  Vec(const Vec &b)
+  constexpr Vec(const Vec &b)
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = b.vec_[i];
     }
   }
 
-  Vec(Vec &b)
+  constexpr Vec(Vec &b)
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = b.vec_[i];
     }
   }
 
-  inline Vec &zero()
+  constexpr inline Vec &zero()
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = T(0);
@@ -88,12 +88,12 @@ public:
     return *this;
   }
 
-  inline T &operator[](int idx)
+  constexpr inline T &operator[](int idx)
   {
     return vec_[idx];
   }
 
-  inline T operator[](int idx) const
+  constexpr inline T operator[](int idx) const
   {
     return vec_[idx];
   }
@@ -103,7 +103,7 @@ public:
 #endif
 
 #define VEC_OP_DEF(op)                                                                   \
-  inline Vec operator op(const Vec &b) const                                             \
+  inline constexpr Vec operator op(const Vec &b) const                                             \
   {                                                                                      \
     Vec r;                                                                               \
     for (int i = 0; i < vec_size; i++) {                                                 \
@@ -111,7 +111,7 @@ public:
     }                                                                                    \
     return r;                                                                            \
   }                                                                                      \
-  inline Vec operator op(T b) const                                                      \
+  inline constexpr Vec operator op(T b) const                                                      \
   {                                                                                      \
     Vec r;                                                                               \
     for (int i = 0; i < vec_size; i++) {                                                 \
@@ -119,14 +119,14 @@ public:
     }                                                                                    \
     return r;                                                                            \
   }                                                                                      \
-  inline Vec &operator op##=(T b)                                                        \
+  inline constexpr  Vec &operator op##=(T b)                                                        \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b;                                                                  \
     }                                                                                    \
     return *this;                                                                        \
   }                                                                                      \
-  inline Vec &operator op##=(const Vec b)                                                \
+  inline constexpr Vec &operator op##=(const Vec b)                                                \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b.vec_[i];                                                          \
@@ -290,6 +290,13 @@ public:
     printf(")");
   }
 
+  /* modifies vector in-place */
+  Vec &negate() {
+    for (int i = 0; i < vec_size; i++) {
+      vec_[i] = -vec_[i];
+    }
+    return *this;
+  }
 private:
   T vec_[vec_size];
 };

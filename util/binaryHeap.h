@@ -44,9 +44,9 @@ public:
       result.ensure_capacity(content.size());
 
       while (size() > 0) {
-        result.push(std::move(pop()));
+        result.append(std::move(pop()));
       }
-      return;
+      return {};
     }
 
     Vector<T> result = std::move(content);
@@ -163,7 +163,7 @@ private:
 
       // If the element needs to be moved, swap it, and continue.
       if (swap != -1) {
-        std::swap(n, swap);
+        BinaryHeap::swap(n, swap);
         n = swap;
       }
       // Otherwise, we are done.

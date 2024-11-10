@@ -28,6 +28,9 @@ public:
 
   BoolVector(const BoolVector &b)
   {
+    vector_ = static_storage_;
+    size_ = static_size;
+    vector_size_ = static_size >> block_shift;
     resize(b.size_);
 
     int ilen = std::min(vector_size_, b.vector_size_);
