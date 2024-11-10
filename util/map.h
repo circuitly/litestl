@@ -184,7 +184,7 @@ public:
 
     key_value_range begin() const
     {
-      return key_range(map_, 0);
+      return key_value_range(map_, 0);
     }
 
     key_value_range end() const
