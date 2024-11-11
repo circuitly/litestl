@@ -14,8 +14,9 @@ template <typename T, int vec_size> class Vec {
 public:
   static const int size = vec_size;
 
-  Vec()
+  constexpr Vec()
   {
+    vec_[0] = vec_[1] = T(0);
   }
 
   constexpr Vec(T a, T b)
@@ -103,7 +104,7 @@ public:
 #endif
 
 #define VEC_OP_DEF(op)                                                                   \
-  inline constexpr Vec operator op(const Vec &b) const                                             \
+  inline constexpr Vec operator op(const Vec &b) const                                   \
   {                                                                                      \
     Vec r;                                                                               \
     for (int i = 0; i < vec_size; i++) {                                                 \
@@ -111,7 +112,7 @@ public:
     }                                                                                    \
     return r;                                                                            \
   }                                                                                      \
-  inline constexpr Vec operator op(T b) const                                                      \
+  inline constexpr Vec operator op(T b) const                                            \
   {                                                                                      \
     Vec r;                                                                               \
     for (int i = 0; i < vec_size; i++) {                                                 \
@@ -119,14 +120,14 @@ public:
     }                                                                                    \
     return r;                                                                            \
   }                                                                                      \
-  inline constexpr  Vec &operator op##=(T b)                                                        \
+  inline constexpr Vec &operator op##=(T b)                                              \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b;                                                                  \
     }                                                                                    \
     return *this;                                                                        \
   }                                                                                      \
-  inline constexpr Vec &operator op##=(const Vec b)                                                \
+  inline constexpr Vec &operator op##=(const Vec b)                                      \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b.vec_[i];                                                          \
@@ -148,7 +149,7 @@ public:
 #pragma clang diagnostic pop
 #endif
 
-  Vec &min(const Vec &b)
+  constexpr Vec &min(const Vec &b)
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = std::min(vec_[i], b.vec_[i]);
@@ -157,7 +158,7 @@ public:
     return *this;
   }
 
-  Vec &max(const Vec &b)
+  constexpr Vec &max(const Vec &b)
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = std::max(vec_[i], b.vec_[i]);
@@ -166,7 +167,7 @@ public:
     return *this;
   }
 
-  Vec &floor()
+  constexpr Vec &floor()
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = std::floor(vec_[i]);
@@ -175,7 +176,7 @@ public:
     return *this;
   }
 
-  Vec &ceil()
+  constexpr Vec &ceil()
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = std::ceil(vec_[i]);
@@ -184,7 +185,7 @@ public:
     return *this;
   }
 
-  Vec &abs()
+  constexpr Vec &abs()
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = std::abs(vec_[i]);
@@ -193,7 +194,7 @@ public:
     return *this;
   }
 
-  Vec &fract()
+  constexpr Vec &fract()
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] -= std::floor(vec_[i]);
@@ -212,7 +213,7 @@ public:
     return sum;
   }
 
-  T normalize()
+  constexpr T normalize()
   {
     T len = length();
     if (len > 0.00000001) {
@@ -229,27 +230,27 @@ public:
     return len;
   }
 
-  T length()
+  constexpr T length()
   {
     return std::sqrt(dot(*this));
   }
 
-  T lengthSqr()
+  constexpr T lengthSqr()
   {
     return dot(*this);
   }
 
-  T distance(const Vec &b)
+  constexpr T distance(const Vec &b)
   {
     return std::sqrt(distanceSqr(b));
   }
 
-  T distanceSqr(const Vec &b)
+  constexpr T distanceSqr(const Vec &b)
   {
     return (b - *this).lengthSqr();
   }
 
-  Vec &rotate2d(Vec center, double th)
+  constexpr Vec &rotate2d(Vec center, double th)
   {
     if constexpr (vec_size > 1) {
       double cosTh = std::cos(th);
@@ -264,7 +265,7 @@ public:
     return *this;
   }
 
-  Vec &interp(const Vec &b, double factor)
+  constexpr Vec &interp(const Vec &b, double factor)
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] += T(double(b.vec_[i] - vec_[i]) * factor);
@@ -291,12 +292,14 @@ public:
   }
 
   /* modifies vector in-place */
-  Vec &negate() {
+  constexpr Vec &negate()
+  {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = -vec_[i];
     }
     return *this;
   }
+
 private:
   T vec_[vec_size];
 };

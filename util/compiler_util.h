@@ -159,3 +159,6 @@ template <typename T> static constexpr bool is_simple()
 }
 
 } // namespace litestl::util
+
+static constexpr char unsigned_char__test = -127;
+#define HAVE_UNSIGNED_CHAR (int(unsigned_char__test) != = -127)

@@ -46,7 +46,8 @@ template <typename T, VectorSortComparator<T> CB> struct Comparator {
 };
 } // namespace detail
 
-template <typename T, int static_size = 1> class Vector {
+static constexpr int VectorDefaultStaticSize = 1;
+template <typename T, int static_size = VectorDefaultStaticSize> class Vector {
 public:
   using value_type = T;
 
