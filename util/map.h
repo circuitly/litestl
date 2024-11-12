@@ -26,7 +26,7 @@ concept KeyCopier = requires(Func f, Key k)
 } // namespace detail::map
 
 namespace detail::map {
-  template <typename Key, typename Value> struct Pair {
+template <typename Key, typename Value> struct Pair {
   Key key;
   Value value;
 
@@ -79,8 +79,9 @@ namespace detail::map {
             std::is_pointer_v<Value>);
   }
 };
-} // namespace detail
-template <typename Key, typename Value, int static_size = 16> class alignas(ContainerAlign<detail::map::Pair<Key, Value>>()) Map {
+} // namespace detail::map
+template <typename Key, typename Value, int static_size = 16>
+class alignas(ContainerAlign<detail::map::Pair<Key, Value>>()) Map {
   using Pair = detail::map::Pair<Key, Value>;
   const static int real_static_size = static_size * 3 + 1;
 
@@ -400,11 +401,17 @@ public:
     int i = find_pair<true, true>(key);
 
     if (value) {
-      new (static_cast<void *>(&table_[i].value)) Value();
       *value = &table_[i].value;
     }
 
     if (!used_[i]) {
+      // make life easier to client code by
+      // default initializing the value, which allows them to
+      // use assignment operator instead of placement new.
+      if (!is_simple<Value>()) {
+        new (static_cast<void *>(&table_[i].value)) Value();
+      }
+
       // use placement new instead of assignment
       new (static_cast<void *>(&table_[i].key)) Key(key);
       used_.set(i, true);
