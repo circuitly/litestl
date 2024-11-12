@@ -19,7 +19,7 @@ public:
   {
     vector_ = static_storage_;
     size_ = static_size;
-    vector_size_ = static_size >> block_shift;
+    vector_size_ = std::max(static_size >> block_shift, 1);
 
     for (int i = 0; i < vector_size_; i++) {
       vector_[i] = 0;
@@ -30,7 +30,7 @@ public:
   {
     vector_ = static_storage_;
     size_ = static_size;
-    vector_size_ = static_size >> block_shift;
+    vector_size_ = std::max(static_size >> block_shift, 1);
     resize(b.size_);
 
     int ilen = std::min(vector_size_, b.vector_size_);
@@ -48,7 +48,6 @@ public:
 
     if (b.vector_ == b.static_storage_) {
       vector_ = static_storage_;
-
       for (int i = 0; i < vector_size_; i++) {
         vector_[i] = b.vector_[i];
       }
@@ -70,7 +69,6 @@ public:
 
     this->~BoolVector();
     new (static_cast<void *>(this)) BoolVector(b);
-
     return *this;
   }
 
@@ -139,6 +137,7 @@ private:
 
   void realloc(int new_vec_size)
   {
+    new_vec_size = std::max(new_vec_size, 1);
     BlockInt *old = vector_;
 
     vector_ = static_cast<BlockInt *>(

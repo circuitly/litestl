@@ -229,7 +229,7 @@ public:
     data_[N] = 0;
   }
 
-  ATTR_NO_OPT String(const String &b) : size_(static_size - 1)
+  ATTR_NO_OPT String(const String &b)
   {
     data_ = static_storage_;
 
@@ -249,7 +249,9 @@ public:
 
   String(String &&b)
   {
-    if (b.data_ == b.static_storage_) {
+    size_ = b.size_;
+
+    if (size_ < static_size - 1) {
       data_ = static_storage_;
 
       for (int i = 0; i < b.size_; i++) {
@@ -259,17 +261,22 @@ public:
       data_[b.size_] = 0;
     } else {
       data_ = b.data_;
-      b.data_ = b.static_storage_;
-      b.data_[0] = 0;
     }
 
-    size_ = b.size_;
+    b.data_ = b.static_storage_;
+    b.data_[0] = 0;
+    b.size_ = 0;
   }
 
   String &operator=(const String &b)
   {
+    if (&b == this) {
+      return *this;
+    }
+
     data_ = static_storage_;
-    ensure_size(size_);
+    ensure_size(b.size_);
+    size_ = b.size_;
 
     for (int i = 0; i < b.size_; i++) {
       data_[i] = b.data_[i];
@@ -330,9 +337,17 @@ public:
     return !operator==(vb);
   }
 
-  bool operator==(const String &vb) const
+  bool operator==(const String &b) const
   {
-    return detail::strcmp<Char>(c_str(), vb.c_str()) == 0;
+    if (size_ != b.size_) {
+      return false;
+    }
+    for (int i = 0; i < size_; i++) {
+      if (data_[i] != b.data_[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   String operator+(const String &b) const
@@ -364,10 +379,10 @@ private:
   /* Ensures data has at least size+1 elements, does not set size_*/
   void ensure_size(int size)
   {
-    if (size >= size_ + 1) {
+    if (size > size_) {
       Char *data2;
 
-      if (size + 1 <= static_size) {
+      if (size < static_size - 1) {
         data2 = static_storage_;
       } else {
         data2 = static_cast<Char *>(alloc::alloc("string", size + 1));

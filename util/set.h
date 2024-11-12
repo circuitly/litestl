@@ -12,7 +12,10 @@
 
 namespace litestl::util {
 
-template <typename Key, size_t static_size_logical = 4> struct Set {
+// cannot rely on pointer members forcibly aligning to 8
+// because of wasm
+template <typename Key, size_t static_size_logical = 4> 
+struct CONTAINER_ALIGN(Key) Set {
   using key_type = Key;
   static constexpr size_t static_size = static_size_logical * 4;
 

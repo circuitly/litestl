@@ -1,5 +1,6 @@
-#pragma once 
+#pragma once
 
+#include "compiler_util.h"
 #include <functional>
 #include <type_traits>
 #include <utility>
@@ -18,6 +19,34 @@ template <typename R, typename... Args> struct function_ref<R(Args...)> {
       : callback_(callback_impl<typename std::remove_reference_t<CallImpl>>)
   {
     ptr_ = reinterpret_cast<void *>(&impl);
+  }
+  function_ref(const function_ref &b) : callback_(b.callback_), ptr_(b.ptr_)
+  {
+  }
+  function_ref(function_ref &&b) : callback_(b.callback_), ptr_(b.ptr_)
+  {
+    b.callback_ = nullptr;
+    b.ptr_ = nullptr;
+  }
+
+  DEFAULT_MOVE_ASSIGNMENT(function_ref)
+
+  function_ref &operator=(const function_ref &b)
+  {
+    if (&b == this) {
+      return *this;
+    }
+
+    callback_ = b.callback_;
+    ptr_ = b.ptr_;
+    return *this;
+  }
+
+  template <typename CallImpl> function_ref &operator=(CallImpl &&impl)
+  {
+    callback_ = callback_impl<typename std::remove_reference_t<CallImpl>>;
+    ptr_ = reinterpret_cast<void *>(&impl);
+    return *this;
   }
 
   template <typename... Args2> R operator()(Args2... args)

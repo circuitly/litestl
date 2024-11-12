@@ -10,6 +10,15 @@ using uint = unsigned int;
 
 #include "type_tags.h"
 
+// Note: we cannot rely on pointer members forcibly 
+// aligning container types to 8 because of wasm
+template<typename T>
+static consteval size_t ContainerAlign() {
+  return sizeof(T) < 8 ? sizeof(void*) : 8;
+}
+#define CONTAINER_ALIGN(T) alignas(ContainerAlign<T>())
+
+
 #define DEFAULT_MOVE_ASSIGNMENT(Type)                                                    \
   Type &operator=(Type &&b) noexcept                                                     \
   {                                                                                      \

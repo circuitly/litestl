@@ -22,12 +22,10 @@ static Iter operator+(int n, const Iter &b)
 namespace litestl::util {
 
 template <typename BASE, typename ITEM>
-concept VectorSortComparator = requires(BASE base, const ITEM &a, const ITEM &b)
-{
+concept VectorSortComparator = requires(BASE base, const ITEM &a, const ITEM &b) {
   {
     base(a, b)
-  }
-  ->std::convertible_to<std::int32_t>;
+  } -> std::convertible_to<std::int32_t>;
 };
 
 namespace detail {
@@ -47,7 +45,8 @@ template <typename T, VectorSortComparator<T> CB> struct Comparator {
 } // namespace detail
 
 static constexpr int VectorDefaultStaticSize = 1;
-template <typename T, int static_size = VectorDefaultStaticSize> class Vector {
+template <typename T, int static_size = VectorDefaultStaticSize>
+class CONTAINER_ALIGN(T) Vector {
 public:
   using value_type = T;
 
@@ -252,21 +251,25 @@ public:
       return vec_->data_[i];
     }
 
-
-    friend difference_type operator-(const iterator_base &a, const iterator_base &b) {
-          return a.i_ - b.i_;
+    friend difference_type operator-(const iterator_base &a, const iterator_base &b)
+    {
+      return a.i_ - b.i_;
     }
-    friend iterator_base operator+(int n, const iterator_base &b) {
-          return iterator_base(*b.vec_, n + b.i_);
+    friend iterator_base operator+(int n, const iterator_base &b)
+    {
+      return iterator_base(*b.vec_, n + b.i_);
     }
-    friend iterator_base operator+(const iterator_base &b, int n) {
-          return iterator_base(*b.vec_, b.i_ + n);
+    friend iterator_base operator+(const iterator_base &b, int n)
+    {
+      return iterator_base(*b.vec_, b.i_ + n);
     }
-    friend iterator_base operator-(int n, const iterator_base &b) {
-          return iterator_base(*b.vec_, n - b.i_);
+    friend iterator_base operator-(int n, const iterator_base &b)
+    {
+      return iterator_base(*b.vec_, n - b.i_);
     }
-    friend iterator_base operator-(const iterator_base &b, int n) {
-          return iterator_base(*b.vec_, b.i_ - n);
+    friend iterator_base operator-(const iterator_base &b, int n)
+    {
+      return iterator_base(*b.vec_, b.i_ - n);
     }
 
   private:

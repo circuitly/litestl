@@ -25,71 +25,66 @@ concept KeyCopier = requires(Func f, Key k)
 /* clang-format on */
 } // namespace detail::map
 
-template <typename Key, typename Value, int static_size = 16> class Map {
+namespace detail::map {
+  template <typename Key, typename Value> struct Pair {
+  Key key;
+  Value value;
+
+  Pair()
+  {
+  }
+
+  Pair(Pair &&b) = default;
+  Pair(const Pair &b) = default;
+
+  Pair(Key &key_, Value &value_)
+  {
+    key = key_;
+    value = value_;
+  }
+  Pair(Key &&key_, Value &&value_)
+  {
+    key = key_;
+    value = value_;
+  }
+
+  Pair &operator=(Pair &&b)
+  {
+    if (this == &b) {
+      return *this;
+    }
+
+    key = std::move(key);
+    value = std::move(value);
+
+    return *this;
+  }
+
+  Pair &operator=(const Pair &b)
+  {
+    if (this == &b) {
+      return *this;
+    }
+
+    key = b.key;
+    value = b.value;
+
+    return *this;
+  }
+
+  static constexpr bool is_simple()
+  {
+    return (std::is_integral_v<Key> || std::is_pointer_v<Key>) &&
+           (std::is_integral_v<Value> || std::is_floating_point_v<Value> ||
+            std::is_pointer_v<Value>);
+  }
+};
+} // namespace detail
+template <typename Key, typename Value, int static_size = 16> class alignas(ContainerAlign<detail::map::Pair<Key, Value>>()) Map {
+  using Pair = detail::map::Pair<Key, Value>;
   const static int real_static_size = static_size * 3 + 1;
 
 public:
-  struct Pair {
-    Key key;
-    Value value;
-
-    Pair()
-    {
-    }
-
-    Pair(Pair &&b)
-    {
-      key = std::move(b.key);
-      value = std::move(b.value);
-    }
-
-    Pair(const Pair &b) : key(b.key), value(b.value)
-    {
-    }
-
-    Pair(Key &key_, Value &value_)
-    {
-      key = key_;
-      value = value_;
-    }
-    Pair(Key &&key_, Value &&value_)
-    {
-      key = key_;
-      value = value_;
-    }
-
-    Pair &operator=(Pair &&b)
-    {
-      if (this == &b) {
-        return *this;
-      }
-
-      key = std::move(key);
-      value = std::move(value);
-
-      return *this;
-    }
-
-    Pair &operator=(const Pair &b)
-    {
-      if (this == &b) {
-        return *this;
-      }
-
-      key = b.key;
-      value = b.value;
-
-      return *this;
-    }
-
-    static constexpr bool is_simple()
-    {
-      return (std::is_integral_v<Key> || std::is_pointer_v<Key>)&&(
-          std::is_integral_v<Value> || std::is_floating_point_v<Value> ||
-          std::is_pointer_v<Value>);
-    }
-  };
-
   using key_type = Key;
   using value_type = Value;
 
@@ -315,7 +310,8 @@ public:
     add_finalize(i, key, value);
   }
 
-  void insert(const Key &&key, const Value &&value)
+  /* Does not check if key already exists. */
+  void insert(Key &&key, Value &&value)
   {
     check_load();
 
@@ -343,6 +339,7 @@ public:
 
   Value &operator[](const Key &key)
   {
+    check_load();
     int i = find_pair<true, true>(key);
 
     if (!used_[i]) {
@@ -351,8 +348,9 @@ public:
       }
 
       used_.set(i, true);
+      new (static_cast<void *>(&table_[i].key)) Key(key);
+      used_count_++;
     }
-
     return table_[i].value;
   }
 
@@ -402,6 +400,7 @@ public:
     int i = find_pair<true, true>(key);
 
     if (value) {
+      new (static_cast<void *>(&table_[i].value)) Value();
       *value = &table_[i].value;
     }
 
@@ -539,7 +538,7 @@ private:
     }
   }
 
-  ATTR_NO_OPT bool check_load()
+  inline ATTR_NO_OPT bool check_load()
   {
     if (used_count_ > table_.size() / 3) {
       realloc_to_size(table_.size() * 3);
@@ -549,7 +548,7 @@ private:
     return false;
   }
 
-  ATTR_NO_OPT void realloc_to_size(size_t size)
+  inline ATTR_NO_OPT void realloc_to_size(size_t size)
   {
     size_t old_size = hashsizes[cur_size_];
     while (hashsizes[cur_size_] < size) {
@@ -571,7 +570,15 @@ private:
 
     for (int i = 0; i < old.size(); i++) {
       if (old_used[i]) {
-        insert(std::move(old[i].key), std::move(old[i].value));
+        int index = find_pair<false, true>(old[i].key);
+
+        new (static_cast<void *>(&table_[index].key)) Key(std::move(old[i].key));
+        new (static_cast<void *>(&table_[index].value)) Value(std::move(old[i].value));
+
+        if constexpr (!Pair::is_simple()) {
+          old[i].~Pair();
+        }
+        used_.set(index, true);
       }
     }
 
