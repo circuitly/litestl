@@ -46,7 +46,8 @@ template <typename T, VectorSortComparator<T> CB> struct Comparator {
 
 static constexpr int VectorDefaultStaticSize = 1;
 template <typename T, int static_size = VectorDefaultStaticSize>
-class CONTAINER_ALIGN(T) Vector {
+/** asdsa */
+class alignas(ContainerAlign<T>()) Vector {
 public:
   using value_type = T;
 

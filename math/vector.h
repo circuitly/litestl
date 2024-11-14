@@ -1,5 +1,7 @@
 #pragma once
 
+/** Small linear algebra vector class. */
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -12,6 +14,8 @@
 namespace litestl::math {
 template <typename T, int vec_size> class Vec {
 public:
+  using value_type = T;
+
   static const int size = vec_size;
 
   constexpr Vec()

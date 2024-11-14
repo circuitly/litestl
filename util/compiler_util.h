@@ -10,14 +10,12 @@ using uint = unsigned int;
 
 #include "type_tags.h"
 
-// Note: we cannot rely on pointer members forcibly 
+// Note: we cannot rely on pointer members forcibly
 // aligning container types to 8 because of wasm
-template<typename T>
-static consteval size_t ContainerAlign() {
-  return sizeof(T) < 8 ? sizeof(void*) : 8;
+template <typename T> static consteval size_t ContainerAlign()
+{
+  return sizeof(T) < 8 ? sizeof(void *) : 8;
 }
-#define CONTAINER_ALIGN(T) alignas(ContainerAlign<T>())
-
 
 #define DEFAULT_MOVE_ASSIGNMENT(Type)                                                    \
   Type &operator=(Type &&b) noexcept                                                     \
@@ -101,18 +99,22 @@ static inline const void *pointer_offset(const void *ptr, int n)
       NOCOPY = 1 << 2,
       NOINTERP = 1 << 3,
     };
-    FlagClass(AttrFlag, _AttrFlag);
+    MAKE_FLAGS_CLASS(AttrFlag, _AttrFlag);
  */
-#define FlagClass(Name, Enum)                                                            \
+#define MAKE_FLAGS_CLASS(Name, Enum, Storage)                                            \
   struct Name {                                                                          \
     using enum Enum;                                                                     \
-    constexpr Name() : val_(Enum(0))                                                     \
+    constexpr operator Enum()                                                            \
+    {                                                                                    \
+      return Enum(val_);                                                                 \
+    }                                                                                    \
+    constexpr Name() : val_(0)                                                           \
     {                                                                                    \
     }                                                                                    \
-    constexpr Name(Enum f) : val_(f)                                                     \
+    constexpr Name(Enum f) : val_(int(f))                                                \
     {                                                                                    \
     }                                                                                    \
-    constexpr Name(int val) : val_(static_cast<Enum>(val))                               \
+    constexpr Name(int val) : val_(val)                                                  \
     {                                                                                    \
     }                                                                                    \
     constexpr Name(const Name &b) : val_(b.val_)                                         \
@@ -150,9 +152,56 @@ static inline const void *pointer_offset(const void *ptr, int n)
     {                                                                                    \
       return Name(~int(val_));                                                           \
     }                                                                                    \
-    Enum val_;                                                                           \
+    Storage val_;                                                                        \
   }
 
+/* Example:
+    enum class _AttrFlag {
+      NONE = 0,
+      TOPO = 1 << 0,
+      TEMP = 1 << 1,
+      NOCOPY = 1 << 2,
+      NOINTERP = 1 << 3,
+    };
+    MAKE_ENUM_CLASS(AttrFlag, _AttrFlag);
+ */
+#define MAKE_ENUM_CLASS(Name, Enum, Storage)                                             \
+  struct Name {                                                                          \
+    using enum Enum;                                                                     \
+    constexpr operator Enum()                                                            \
+    {                                                                                    \
+      return Enum(val_);                                                                 \
+    }                                                                                    \
+    constexpr Name() : val_(0)                                                           \
+    {                                                                                    \
+    }                                                                                    \
+    constexpr Name(Enum f) : val_(int(f))                                                \
+    {                                                                                    \
+    }                                                                                    \
+    constexpr Name(int val) : val_(val)                                                  \
+    {                                                                                    \
+    }                                                                                    \
+    constexpr Name(const Name &b) : val_(b.val_)                                         \
+    {                                                                                    \
+    }                                                                                    \
+    constexpr operator bool() const                                                      \
+    {                                                                                    \
+      return bool(int(val_));                                                            \
+    }                                                                                    \
+    constexpr explicit operator int() const                                              \
+    {                                                                                    \
+      return int(val_);                                                                  \
+    }                                                                                    \
+    constexpr bool operator==(Name b) const                                              \
+    {                                                                                    \
+      return val_ == b.val_;                                                             \
+    }                                                                                    \
+    constexpr bool operator!=(Name b) const                                              \
+    {                                                                                    \
+      return val_ != b.val_;                                                             \
+    }                                                                                    \
+    Storage val_;                                                                        \
+  }
 namespace litestl::util {
 namespace detail {
 template <typename T> static constexpr bool is_simple(T *)

@@ -204,7 +204,7 @@ private:
   int size_ = 0;
 };
 
-template <typename Char, int static_size> class String {
+template <typename Char, int static_size> class alignas(8) String {
 public:
   String() : size_(0)
   {
@@ -400,8 +400,8 @@ private:
   }
 
   Char *data_;
-  Char static_storage_[static_size];
   int size_ = 0; /* does not include null-terminating byte. */
+  Char static_storage_[static_size];
 };
 
 template <typename Char> String<Char> operator+(const Char *a, const String<Char> &b)
