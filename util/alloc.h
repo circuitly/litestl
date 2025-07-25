@@ -20,9 +20,12 @@ namespace litestl::alloc {
 void *alloc(const char *tag, size_t size);
 void release(void *mem);
 /** prints all the blocks allocated by this thread. */
-bool print_blocks();
+bool print_blocks(bool printPermanent);
 /** returns the total memory allocated by all threads. */
 int getMemorySize();
+int getPermanentMemorySize();
+void pushPermanentAlloc();
+void popPermanentAlloc();
 
 namespace detail {
 const char *getMemoryTag(void *vmem);
@@ -32,7 +35,12 @@ template<typename T> static const char *getMemoryTag(T *mem) {
 }
 
 #else
+static void pushPermanentAlloc() {}
+static void popPermanentAlloc() {}
 static int getMemorySize() {
+  return -1;
+}
+static int getPermanentMemorySize() {
   return -1;
 }
 static void *alloc(const char *tag, size_t size)
@@ -92,5 +100,24 @@ template <typename T> inline void DeleteArray(T *arg, size_t size)
     release(static_cast<void *>(arg));
   }
 }
+
+/**
+ * Allocate permanent things that shouldn't show up
+ * in the leak list.
+ * 
+ * {
+ *    alloc::PermanentGuard guard;
+ *    string *s = alloc::New<string>("a permanent string");
+ * }
+ *  
+ */
+struct PermanentGuard {
+  PermanentGuard() {
+    pushPermanentAlloc();
+  }
+  ~PermanentGuard() {
+    popPermanentAlloc();
+  }
+};
 
 }; // namespace litestl::alloc

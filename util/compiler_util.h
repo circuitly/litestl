@@ -28,6 +28,17 @@ template <typename T> static consteval size_t ContainerAlign()
     return *this;                                                                        \
   }
 
+#define DEFAULT_COPY_ASSIGNMENT(Type)                                                    \
+  Type &operator=(const Type &b) noexcept                                                \
+  {                                                                                      \
+    if (this == &b) {                                                                    \
+      return *this;                                                                      \
+    }                                                                                    \
+    this->~Type();                                                                       \
+    new (static_cast<void *>(this)) Type(b);                                             \
+    return *this;                                                                        \
+  }
+
 static inline void *pointer_offset(void *ptr, int n)
 {
   return static_cast<void *>(static_cast<char *>(ptr) + n);

@@ -68,6 +68,7 @@ struct TaskWorker {
         std::lock_guard guard(mutex);
         size = queue.size();
         if (stop_ && !size) {
+          printf("worker stopping\n\n");
           break;
         }
       }
@@ -110,11 +111,13 @@ struct TaskWorker {
     return queue.size();
   }
   void push(ThreadMain main)
-  {
+  {    
     bool notify = false;
 
     {
       std::lock_guard guard(mutex);
+      // don't store allocated memory in leak list
+      litestl::alloc::PermanentGuard leakguard;
       queue.append(main);
       if (queue.size() == 1) {
         notify = true;

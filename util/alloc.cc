@@ -16,13 +16,22 @@
 
 #define MAKE_TAG(a, b, c, d) (a | (b << 8) | (c << 16) | d << 24)
 #define TAG1 MAKE_TAG('t', 'a', 'g', '1')
-#define TAG2 MAKE_TAG('t', 'a', 'g', '2')
+#define TAG2 ('T' | ('A' << 8) | ('g' << 16))
+
 #define FREE MAKE_TAG('f', 'r', 'e', 'e')
 
 std::atomic<int> memorySize = {0};
+std::atomic<int> permanentMemorySize = {0}; //size of things allocated when disableLeakTracking > 0
+std::atomic<int> allocatingPermanent = {0};
+
+enum {
+  MEM_PERMANENT = 1<<0
+};
 
 struct MemHead {
-  int tag1, tag2;
+  int tag1;
+  int tag2: 24;
+  int flag: 8;
 
   // MemHeads are their own nodes
   struct MemHead *next, *prev;
@@ -65,13 +74,15 @@ static MemList *getMemList()
 }
 namespace litestl::alloc {
 #ifndef NO_DEBUG_ALLOC
-bool print_blocks()
+bool print_blocks(bool printPermanent)
 {
   std::lock_guard guard(getMemList()->mutex);
 
   MemHead *mem = getMemList()->first;
   while (mem) {
-    printf("\"%s:%d\"  (%p)\n", mem->tag, int(mem->size), mem + 1);
+    if (!(mem->flag & MEM_PERMANENT) != printPermanent) {
+      printf("\"%s:%d\"  (%p)\n", mem->tag, int(mem->size), mem + 1);
+    }
     mem = mem->next;
   }
 
@@ -81,6 +92,11 @@ bool print_blocks()
 int getMemorySize()
 {
   return memorySize.load();
+}
+
+int getPermanentMemorySize()
+{
+  return permanentMemorySize.load();
 }
 
 void *alloc(const char *tag, size_t size)
@@ -102,7 +118,16 @@ void *alloc(const char *tag, size_t size)
   mem->tag = tag;
   mem->size = size;
   mem->listref = static_cast<void *>(getMemList());
-  std::atomic_fetch_add(&memorySize, mem->size + sizeof(MemHead));
+  mem->flag = 0;
+
+  int permanentMem = allocatingPermanent.load();
+  if (permanentMem) {
+    mem->flag |= MEM_PERMANENT;
+    std::atomic_fetch_add(&permanentMemorySize, mem->size + sizeof(MemHead));
+  } else {
+    std::atomic_fetch_add(&memorySize, mem->size + sizeof(MemHead));
+  }
+
   getMemList()->push(std::move(mem));
 
   return reinterpret_cast<void *>(mem + 1);
@@ -147,6 +172,8 @@ void release(void *ptr)
   MemHead *mem = static_cast<MemHead *>(ptr);
   mem--;
 
+  bool permanent = mem->flag & MEM_PERMANENT;
+
   MemList *list = static_cast<MemList *>(mem->listref);
 
 #if 0
@@ -165,8 +192,12 @@ void release(void *ptr)
 
   /* Unlink from list. */
   list->remove(mem);
-  std::atomic_fetch_sub(&memorySize, mem->size + sizeof(MemHead));
 
+  if (permanent) {
+    std::atomic_fetch_sub(&permanentMemorySize, mem->size + sizeof(MemHead));
+  } else {
+    std::atomic_fetch_sub(&memorySize, mem->size + sizeof(MemHead));
+  }
 #if defined(ALLOC_SAVE_STACK_TRACES) && defined(WASM)
   free(static_cast<void *>(const_cast<char *>(mem->tag)));
 #endif
@@ -186,4 +217,11 @@ const char *getMemoryTag(void *vmem)
 }
 } // namespace detail
 #endif
+
+void pushPermanentAlloc() {
+  allocatingPermanent.fetch_add(1);
+}
+void popPermanentAlloc() {
+  allocatingPermanent.fetch_sub(1);
+}
 } // namespace litestl::alloc

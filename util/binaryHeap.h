@@ -37,7 +37,7 @@ public:
     return result;
   }
 
-  Vector<T> popAll(bool unsorted = false)
+  Vector<T, static_size> popAll(bool unsorted = false)
   {
     if (!unsorted) {
       Vector<T> result;
@@ -49,7 +49,7 @@ public:
       return {};
     }
 
-    Vector<T> result = std::move(content);
+    Vector<T, static_size> result = std::move(content);
     content.clear_and_contract();
     weights.clear_and_contract();
     return result;
@@ -99,8 +99,8 @@ public:
   }
 
 private:
-  Vector<T> content;
-  Vector<double> weights;
+  Vector<T, static_size> content;
+  Vector<double, static_size> weights;
   void swap(int a, int b)
   {
     std::swap(content[a], content[b]);
