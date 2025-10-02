@@ -7,7 +7,7 @@
 #include <cstdio>
 
 namespace litestl::math {
-template <typename Float, int N, int Options=Eigen::ColMajor> struct Matrix {
+template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
   using Vector = Vec<Float, N>;
   using Vec3 = Vec<Float, 3>;
   using Vec4 = Vec<Float, 4>;
@@ -78,6 +78,12 @@ template <typename Float, int N, int Options=Eigen::ColMajor> struct Matrix {
     }
 
     return *this;
+  }
+
+  Matrix inverse() const
+  {
+    const EigenMatrix m(reinterpret_cast<const double *>(&mat_));
+    return Matrix(m.inverse());
   }
 
   Matrix &invert()
@@ -247,7 +253,7 @@ private:
   Vector mat_[N];
 };
 
-using mat3 = Matrix<float, 3>;
-using mat4 = Matrix<float, 4>;
+using mat3 = Matrix<double, 3>;
+using mat4 = Matrix<double, 4>;
 
 } // namespace litestl::math

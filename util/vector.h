@@ -538,7 +538,11 @@ public:
       fprintf(stderr, "Item not in list\n");
       return false;
     }
+    return remove_at(i, swap_end_only);
+  }
 
+  bool remove_at(int i, bool swap_end_only = false)
+  {
     if constexpr (!is_simple<T>()) {
       data_[i].~T();
     }

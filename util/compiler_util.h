@@ -155,6 +155,21 @@ static inline const void *pointer_offset(const void *ptr, int n)
     {                                                                                    \
       return Name(int(val_) | int(b.val_));                                              \
     }                                                                                    \
+    constexpr Name &operator|=(Name b)                                                   \
+    {                                                                                    \
+      val_ |= b.val_;                                                                    \
+      return *this;                                                                      \
+    }                                                                                    \
+    constexpr Name &operator&=(Name b)                                                   \
+    {                                                                                    \
+      val_ &= b.val_;                                                                    \
+      return *this;                                                                      \
+    }                                                                                    \
+    constexpr Name &operator^=(Name b)                                                   \
+    {                                                                                    \
+      val_ ^= b.val_;                                                                    \
+      return *this;                                                                      \
+    }                                                                                    \
     constexpr Name operator^(Name b) const                                               \
     {                                                                                    \
       return Name(int(val_) ^ int(b.val_));                                              \
