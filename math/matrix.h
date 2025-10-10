@@ -15,6 +15,14 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
 
   Matrix()
   {
+    for (int i = 0; i < N; i++) {
+      for (int j = 0; j < N; j++) {
+        mat_[j][i] = 0.0;
+      }
+    }
+    for (int i = 0; i < N; i++) {
+      mat_[i][i] = 1.0;
+    }
   }
 
   Matrix(const Float *data)
@@ -38,9 +46,27 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
     *this = b;
   }
 
+  operator EigenMatrix() const
+  {
+    return EigenMatrix(*reinterpret_cast<const EigenMatrix *>(this));
+  }
+
   operator Float *() const
   {
     return &mat_[0][0];
+  }
+
+  inline Vector getScale() const
+  {
+    Vector r;
+    for (int i = 0; i < N; i++) {
+      double scale = 0.0;
+      for (int j = 0; j < N; j++) {
+        scale += mat_[i][j] * mat_[i][j];
+      }
+      r[i] = std::sqrt(scale);
+    }
+    return r;
   }
 
   inline Matrix &identity()
@@ -82,22 +108,13 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
 
   Matrix inverse() const
   {
-    const EigenMatrix m(reinterpret_cast<const double *>(&mat_));
+    EigenMatrix m = getEigenMatrix();
     return Matrix(m.inverse());
   }
 
   Matrix &invert()
   {
-#if 0
-    EigenMatrix *m = reinterpret_cast < EigenMatrix *>(this);
-    *m = m->inverse();
-    return *this;
-#else
-    EigenMatrix m(&mat_[0][0]);
-    EigenMatrix r = m.inverse();
-    *this = r;
-#endif
-
+    *this = getEigenMatrix().inverse();
     return *this;
   }
 
@@ -105,18 +122,25 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
   template <int M> inline Vec<Float, M> operator*(const Vec<Float, M> v) const
   {
     Vec<Float, M> r;
-
     constexpr int n = N < M ? N : M;
 
     for (int i = 0; i < n; i++) {
       Float sum = Float(0);
 
       for (int j = 0; j < n; j++) {
-        sum += v[j] * mat_[j][i];
+        if constexpr ((Options & 1) == Eigen::RowMajor) {
+          sum += v[j] * mat_[i][j];
+        } else {
+          sum += v[j] * mat_[j][i];
+        }
       }
 
       if constexpr (N == 4 && M < 4) {
-        sum += mat_[3][i];
+        if constexpr ((Options & 1) == Eigen::RowMajor) {
+          sum += mat_[i][3];
+        } else {
+          sum += mat_[3][i];
+        }
       }
 
       r[i] = sum;
@@ -147,9 +171,7 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
 
   Float determinant() const
   {
-    const EigenMatrix *mat = reinterpret_cast<const EigenMatrix *>(this);
-
-    return mat->determinant();
+    return getEigenMatrix()->determinant();
   }
 
   Float dist(const Matrix &b) const
@@ -183,16 +205,12 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
     return *this;
   }
 
-  operator EigenMatrix() const
-  {
-    return EigenMatrix(&mat_[0][0]);
-  }
-
   Matrix &operator=(const EigenMatrix &b)
   {
+    const double *b_ptr = reinterpret_cast<const double *>(&b);
     for (int i = 0; i < N; i++) {
       for (int j = 0; j < N; j++) {
-        mat_[i][j] = b(i, j);
+        mat_[i][j] = b_ptr[i * N + j];
       }
     }
 
@@ -251,6 +269,15 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
 
 private:
   Vector mat_[N];
+
+  EigenMatrix &getEigenMatrix()
+  {
+    return *reinterpret_cast<EigenMatrix *>(mat_);
+  }
+  const EigenMatrix &getEigenMatrix() const
+  {
+    return *reinterpret_cast<const EigenMatrix *>(mat_);
+  }
 };
 
 using mat3 = Matrix<double, 3>;

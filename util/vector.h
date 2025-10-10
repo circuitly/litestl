@@ -283,12 +283,18 @@ public:
 
   flatten_inline Vector(std::initializer_list<T> list)
   {
-    ensure_size(list.size());
+    if (list.size() > static_size) {
+      data_ = static_cast<T *>(alloc::alloc("Vector data", sizeof(T) * list.size()));
+      capacity_ = size_ = list.size();
+    } else {
+      data_ = reinterpret_cast<T *>(static_storage_);
+      capacity_ = size_ = static_size;
+    }
+
     size_ = list.size();
     int i = 0;
-
     for (auto &&item : list) {
-      data_[i] = item;
+      new (static_cast<void *>(data_ + i)) T(std::move(item));
       i++;
     }
   }

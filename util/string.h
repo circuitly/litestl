@@ -375,6 +375,28 @@ public:
     return size_;
   }
 
+  bool starts_with(const String &b) const {
+    if (size_ < b.size_) {
+      return false;
+    }
+    for (int i = 0; i < b.size_; i++) {
+      if (data_[i] != b.data_[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+  bool ends_with(const String &b) const {
+    if (size_ < b.size_) {
+      return false;
+    }
+    for (int i = 0; i < b.size_; i++) {
+      if (data_[size_ - b.size_ + i] != b.data_[i]) {
+        return false;
+      }
+    }
+    return true;  
+  }
 private:
   /* Ensures data has at least size+1 elements, does not set size_*/
   void ensure_size(int size)

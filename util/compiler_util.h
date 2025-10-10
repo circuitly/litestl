@@ -178,6 +178,11 @@ static inline const void *pointer_offset(const void *ptr, int n)
     {                                                                                    \
       return Name(~int(val_));                                                           \
     }                                                                                    \
+    const Name &operator~()                                                              \
+    {                                                                                    \
+      val_ = ~val_;                                                                      \
+      return *this;                                                                      \
+    }                                                                                    \
     Storage val_;                                                                        \
   }
 
