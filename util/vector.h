@@ -280,6 +280,8 @@ public:
 
   using iterator = iterator_base<Vector, T>;
   using const_iterator = iterator_base<const Vector, const T>;
+  using span = std::span<T>;
+  using const_span = const std::span<const T>;
 
   flatten_inline Vector(std::initializer_list<T> list)
   {
@@ -334,10 +336,12 @@ public:
     data_ = static_storage();
   }
 
-  /* Make implicitly convertible to std::span. */
-  operator std::span<T>()
-  {
+  operator span() {
     return std::span<T>(data_, size_);
+  }
+  
+  operator span() const {
+    return std::span<const T>(data_, size_);
   }
 
   ~Vector()
@@ -626,7 +630,7 @@ public:
     ensure_size(size);
   }
 
-  template <bool construct_destruct = true> void resize(size_t newsize)
+  template <bool construct_destruct = true, bool shrink_only = false> void resize(size_t newsize)
   {
     size_t remain = 0;
     if (newsize > size_) {
@@ -643,7 +647,7 @@ public:
     size_ = newsize;
 
     /* Construct new elements. */
-    if constexpr (construct_destruct) {
+    if constexpr (construct_destruct && !shrink_only) {
       for (int i = 0; i < remain; i++) {
         if constexpr (!is_simple<T>()) {
           new (&data_[size_ - i - 1]) T;
