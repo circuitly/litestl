@@ -555,6 +555,26 @@ private:
     return false;
   }
 
+  inline Map &clear()
+  {
+    // destruct all used pairs
+    if constexpr (!Pair::is_simple()) {
+      int size = table_.size();
+      for (int i = 0; i < size; i++) {
+        if (!(used_[i])) {
+          continue;
+        }
+
+        table_[i].~Pair();
+      }
+    }
+
+    // reset used map and count
+    used_count_ = 0;
+    used_.clear();
+    return *this;
+  }
+
   inline ATTR_NO_OPT void realloc_to_size(size_t size)
   {
     size_t old_size = hashsizes[cur_size_];

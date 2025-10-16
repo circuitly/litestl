@@ -14,7 +14,7 @@ namespace litestl::util {
 
 // cannot rely on pointer members forcibly aligning to 8
 // because of wasm
-template <typename Key, size_t static_size_logical = 4> 
+template <typename Key, size_t static_size_logical = 4>
 struct alignas(ContainerAlign<Key>()) Set {
   using key_type = Key;
   static constexpr size_t static_size = static_size_logical * 4;
@@ -140,6 +140,24 @@ struct alignas(ContainerAlign<Key>()) Set {
   size_t size()
   {
     return size_;
+  }
+
+  Set &clear()
+  {
+    if constexpr (!is_simple<Key>()) {
+      int size = table_.size();
+      for (int i = 0; i < size; i++) {
+        if (!(usedmap_[i])) {
+          continue;
+        }
+
+        table_[i].~Key();
+      }
+    }
+    
+    size_ = 0;
+    usedmap_.clear();
+    return *this;
   }
 
 private:
