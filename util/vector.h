@@ -370,12 +370,13 @@ public:
 
   void clear()
   {
-    resize(0);
+    resize<true, true>(0);
   }
 
   void clear_and_contract()
   {
     deconstruct_all();
+    size_ = 0;
     contract();
   }
 
