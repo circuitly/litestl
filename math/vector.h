@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "util/compiler_util.h"
 #include "util/type_tags.h"
 
 namespace litestl::math {
@@ -84,7 +85,7 @@ public:
     }
   }
 
-  constexpr inline Vec &zero()
+  inline constexpr Vec &zero()
   {
     for (int i = 0; i < vec_size; i++) {
       vec_[i] = T(0);
@@ -93,12 +94,12 @@ public:
     return *this;
   }
 
-  constexpr inline T &operator[](int idx)
+  inline constexpr T &operator[](int idx)
   {
     return vec_[idx];
   }
 
-  constexpr inline T operator[](int idx) const
+  inline constexpr T operator[](int idx) const
   {
     return vec_[idx];
   }
@@ -124,14 +125,14 @@ public:
     }                                                                                    \
     return r;                                                                            \
   }                                                                                      \
-  inline constexpr Vec &operator op##=(T b)                                              \
+  inline constexpr Vec &operator op## = (T b)                                            \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b;                                                                  \
     }                                                                                    \
     return *this;                                                                        \
   }                                                                                      \
-  inline constexpr Vec &operator op##=(const Vec b)                                      \
+  inline constexpr Vec &operator op## = (const Vec b)                                    \
   {                                                                                      \
     for (int i = 0; i < vec_size; i++) {                                                 \
       vec_[i] op## = b.vec_[i];                                                          \
@@ -207,7 +208,7 @@ public:
     return *this;
   }
 
-  T dot(const Vec &b)
+  T dot(const Vec &b) const
   {
     T sum = T(0);
     for (int i = 0; i < vec_size; i++) {
@@ -234,22 +235,22 @@ public:
     return len;
   }
 
-  constexpr T length()
+  constexpr T length() const
   {
     return std::sqrt(dot(*this));
   }
 
-  constexpr T lengthSqr()
+  constexpr T lengthSqr() const
   {
     return dot(*this);
   }
 
-  constexpr T distance(const Vec &b)
+  constexpr T distance(const Vec &b) const
   {
     return std::sqrt(distanceSqr(b));
   }
 
-  constexpr T distanceSqr(const Vec &b)
+  constexpr T distanceSqr(const Vec &b) const
   {
     return (b - *this).lengthSqr();
   }

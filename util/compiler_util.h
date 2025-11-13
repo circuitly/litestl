@@ -69,7 +69,7 @@ static inline const void *pointer_offset(const void *ptr, int n)
 #define force_inline [[clang::always_inline]]
 #else
 #define flatten_inline [[gnu::flatten]]
-#define force_inline [[gnu::always_inline]]
+#define force_inline [[clang::always_inline]]
 #endif
 
 #define FlagOperators(T)                                                                 \
@@ -155,6 +155,18 @@ static inline const void *pointer_offset(const void *ptr, int n)
     {                                                                                    \
       return Name(int(val_) | int(b.val_));                                              \
     }                                                                                    \
+    constexpr Name operator|(Enum b) const                                               \
+    {                                                                                    \
+      return Name(int(val_) | int(b));                                                   \
+    }                                                                                    \
+    constexpr Name operator&(Enum b) const                                               \
+    {                                                                                    \
+      return Name(int(val_) & int(b));                                                   \
+    }                                                                                    \
+    constexpr Name operator^(Enum b) const                                               \
+    {                                                                                    \
+      return Name(int(val_) ^ int(b));                                                   \
+    }                                                                                    \
     constexpr Name &operator|=(Name b)                                                   \
     {                                                                                    \
       val_ |= b.val_;                                                                    \
@@ -184,6 +196,18 @@ static inline const void *pointer_offset(const void *ptr, int n)
       return *this;                                                                      \
     }                                                                                    \
     Storage val_;                                                                        \
+  };                                                                                     \
+  static Enum operator|(Enum a, Enum b)                                                  \
+  {                                                                                      \
+    return Enum(int(a) | int(b));                                                        \
+  }                                                                                      \
+  static Enum operator&(Enum a, Enum b)                                                  \
+  {                                                                                      \
+    return Enum(int(a) & int(b));                                                        \
+  }                                                                                      \
+  static Enum operator^(Enum a, Enum b)                                                  \
+  {                                                                                      \
+    return Enum(int(a) ^ int(b));                                                        \
   }
 
 /* Example:
