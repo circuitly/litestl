@@ -69,6 +69,58 @@ struct alignas(ContainerAlign<Key>()) Set {
     realloc(hashsizes[find_hashsize_prev(static_size)]);
   }
 
+  Set(Set &&b)
+      : usedmap_(std::move(b.usedmap_)), cursize_(b.cursize_), size_(b.size_),
+        max_size_(b.max_size_)
+  {
+    if (static_cast<const void *>(b.table_.data()) ==
+        static_cast<const void *>(b.static_storage_))
+    {
+      table_ = {reinterpret_cast<Key *>(static_storage_), b.table_.size()};
+
+      if constexpr (!is_simple<Key>()) {
+        for (int i = 0; i < b.table_.size(); i++) {
+          if (usedmap_[i]) {
+            new (static_cast<void *>(&table_[i])) Key(std::move(b.table_[i]));
+          }
+        }
+      } else {
+        memcpy(static_storage_, b.static_storage_, sizeof(static_storage_));
+      }
+    } else {
+      table_ = b.table_;
+    }
+
+    b.table_ = nullptr;
+    b.size_ = 0;
+  }
+
+  Set(const Set &b)
+      : usedmap_(b.usedmap_), cursize_(b.cursize_), size_(b.size_), max_size_(b.max_size_)
+  {
+    if (static_cast<const void *>(b.table_.data()) ==
+        static_cast<const void *>(b.static_storage_))
+    {
+      table_ = {reinterpret_cast<Key *>(static_storage_), b.table_.size()};
+    } else {
+      table_ = {
+          static_cast<Key *>(alloc::alloc("Set table", sizeof(Key) * b.table_.size())),
+          b.table_.size()};
+    }
+
+    if constexpr (!is_simple<Key>()) {
+      for (int i = 0; i < b.table_.size(); i++) {
+        if (usedmap_[i]) {
+          new (static_cast<void *>(&table_[i])) Key(b.table_[i]);
+        }
+      }
+    } else {
+      memcpy(static_cast<void *>(table_.data()),
+             static_cast<void *>(b.table_.data()),
+             sizeof(Key) * b.table_.size());
+    }
+  }
+
   ~Set()
   {
     if constexpr (!is_simple<Key>()) {
@@ -83,6 +135,9 @@ struct alignas(ContainerAlign<Key>()) Set {
       alloc::release(static_cast<void *>(table_.data()));
     }
   }
+
+  DEFAULT_MOVE_ASSIGNMENT(Set)
+  DEFAULT_COPY_ASSIGNMENT(Set)
 
   iterator begin()
   {
@@ -154,7 +209,7 @@ struct alignas(ContainerAlign<Key>()) Set {
         table_[i].~Key();
       }
     }
-    
+
     size_ = 0;
     usedmap_.clear();
     return *this;
