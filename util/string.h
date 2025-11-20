@@ -274,17 +274,13 @@ public:
       return *this;
     }
 
-    data_ = static_storage_;
     ensure_size(b.size_);
     size_ = b.size_;
 
-    for (int i = 0; i < b.size_; i++) {
+    for (int i = 0; i < size_; i++) {
       data_[i] = b.data_[i];
     }
-
-    size_ = b.size_;
     data_[size_] = 0;
-
     return *this;
   }
 
@@ -305,7 +301,7 @@ public:
   String(const char *str)
   {
     data_ = static_storage_;
-
+    size_ = 0;
     int len = strlen(str);
 
     ensure_size(len);
@@ -413,6 +409,7 @@ private:
       for (int i = 0; i < size_; i++) {
         data2[i] = data_[i];
       }
+      data2[size_] = 0;
 
       if (data_ != static_storage_) {
         alloc::release(static_cast<void *>(data_));
