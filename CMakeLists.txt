@@ -1,3 +1,4 @@
+enable_testing()
 include("build_files/macros.cmake")
 
 add_subdirectory(platform)

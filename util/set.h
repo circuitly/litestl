@@ -71,7 +71,7 @@ struct alignas(ContainerAlign<Key>()) Set {
 
   Set(Set &&b)
       : usedmap_(std::move(b.usedmap_)), cursize_(b.cursize_), size_(b.size_),
-        max_size_(b.max_size_)
+        clearmap_(std::move(b.clearmap_)), max_size_(b.max_size_)
   {
     if (static_cast<const void *>(b.table_.data()) ==
         static_cast<const void *>(b.static_storage_))
@@ -96,7 +96,8 @@ struct alignas(ContainerAlign<Key>()) Set {
   }
 
   Set(const Set &b)
-      : usedmap_(b.usedmap_), cursize_(b.cursize_), size_(b.size_), max_size_(b.max_size_)
+      : usedmap_(b.usedmap_), clearmap_(b.clearmap_), cursize_(b.cursize_),
+        size_(b.size_), max_size_(b.max_size_)
   {
     if (static_cast<const void *>(b.table_.data()) ==
         static_cast<const void *>(b.static_storage_))
@@ -152,9 +153,17 @@ struct alignas(ContainerAlign<Key>()) Set {
   {
     check_capacity();
 
-    int i = find_cell(key);
+    int first_clearcell = -1;
+    int i = find_cell(key, first_clearcell);
 
     if (!usedmap_[i]) {
+      // if we hit a clear cell in the chain, use it
+      // and clear it's clearcell bit.
+      if (first_clearcell != -1) {
+        i = first_clearcell;
+        clearmap_.set(first_clearcell, false);
+      }
+
       usedmap_.set(i, true);
       table_[i] = key;
 
@@ -168,12 +177,14 @@ struct alignas(ContainerAlign<Key>()) Set {
 
   bool remove(const Key &key)
   {
-    int i = find_cell(key);
+    int first_clearcell = -1;
+    int i = find_cell(key, first_clearcell);
 
     if (usedmap_[i]) {
       table_[i].~Key();
       size_--;
       usedmap_.set(i, false);
+      clearmap_.set(i, true);
 
       return true;
     }
@@ -181,9 +192,10 @@ struct alignas(ContainerAlign<Key>()) Set {
     return false;
   }
 
-  bool contains(const Key &key) const
+  bool contains(const Key &key)
   {
-    int i = find_cell(key);
+    int first_clearcell = -1;
+    int i = find_cell(key, first_clearcell);
     return usedmap_[i];
   }
 
@@ -223,21 +235,41 @@ private:
     }
   }
 
-  int find_cell(const Key &key) const
+  int find_cell(const Key &key, int &first_clearcell)
   {
     const hash::HashInt size = hash::HashInt(table_.size());
     hash::HashInt hashval = hash::hash(key) % size;
     hash::HashInt h = hashval, probe = hashval;
 
+    int count = 0;
     while (1) {
-      if (!usedmap_[h] || table_[h] == key) {
+      if (count > size) {
+        // clearcell chain is full
+        clear_clearcell();
+        return find_cell(key, first_clearcell);
+      }
+      // hit free cell?
+      if (!usedmap_[h]) {
+        // was this cell previously cleared? if so keep looking
+        if (clearmap_[h]) {
+          first_clearcell = h;
+        } else {
+          return h;
+        }
+      } else if (table_[h] == key) {
         return h;
       }
 
       probe++;
       hashval += probe;
       h = hashval % size;
+      count++;
     }
+  }
+
+  void clear_clearcell()
+  {
+    realloc(table_.size());
   }
 
   void realloc(size_t size)
@@ -257,6 +289,8 @@ private:
     max_size_ = size / 3;
     usedmap_.resize(size);
     usedmap_.clear();
+    clearmap_.resize(size);
+    clearmap_.clear();
 
     int oldsize = old.size();
     for (int i = 0; i < oldsize; i++) {
@@ -264,7 +298,8 @@ private:
         continue;
       }
 
-      int new_i = find_cell(old[i]);
+      int first_clearcell = -1;
+      int new_i = find_cell(old[i], first_clearcell);
       table_[new_i] = std::move(old[i]);
       usedmap_.set(new_i, true);
 
@@ -283,5 +318,6 @@ private:
   size_t size_ = 0, max_size_ = 0; /* hashsizes[cursize_]*3 */
   char static_storage_[sizeof(Key) * static_size];
   BoolVector<> usedmap_;
+  BoolVector<> clearmap_;
 };
 } // namespace litestl::util

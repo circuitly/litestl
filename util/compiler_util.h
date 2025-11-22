@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 using uchar = unsigned char;
 using ushort = unsigned short;
 using uint = unsigned int;

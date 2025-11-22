@@ -26,3 +26,6 @@ set(SRC
 
 lt_add_library(util "${SRC}" "${LIB}" STATIC)
 
+#XXX TODO: get tests working with ctest/cmake
+#add_test(util SetTest bash tests/run_test.sh tests/test_set.cc)
+

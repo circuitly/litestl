@@ -212,6 +212,7 @@ public:
 
     used_ = b.used_;
     used_count_ = b.used_count_;
+    clear_ = b.clear_;
 
     for (int i = 0; i < size; i++) {
       if (used_[i]) {
@@ -235,6 +236,7 @@ public:
       table_ = std::move(b.table_);
       used_count_ = b.used_count_;
       used_ = std::move(b.used_);
+      clear_ = std::move(b.clear_);
       cur_size_ = b.cur_size_;
     }
   }
@@ -341,9 +343,15 @@ public:
   Value &operator[](const Key &key)
   {
     check_load();
-    int i = find_pair<true, true>(key);
+    int first_clearcell = -1;
+    int i = find_pair<true, true>(key, &first_clearcell);
 
     if (!used_[i]) {
+      if (first_clearcell != -1) {
+        i = first_clearcell;
+        clear_.set(first_clearcell, false);
+      }
+
       if constexpr (!is_simple<Value>()) {
         new (static_cast<void *>(&table_[i].value)) Value();
       }
@@ -355,18 +363,18 @@ public:
     return table_[i].value;
   }
 
-  bool contains(const Key &key) const
+  bool contains(const Key &key)
   {
     int i = find_pair<true, false>(key);
     return i != -1;
   }
-  bool contains(const Key &&key) const
+  bool contains(const Key &&key)
   {
     int i = find_pair<true, false>(key);
     return i != -1;
   }
 
-  Value *lookup_ptr(const Key &key) const
+  Value *lookup_ptr(const Key &key)
   {
     int i = find_pair<true, false>(key);
     if (i < 0) {
@@ -381,8 +389,14 @@ public:
   {
     check_load();
 
-    int i = find_pair<true, true>(key);
+    int first_clearcell = -1;
+    int i = find_pair<true, true>(key, &first_clearcell);
     if (!used_[i]) {
+      if (first_clearcell != -1) {
+        i = first_clearcell;
+        clear_.set(first_clearcell, false);
+      }
+
       used_.set(i, true);
       used_count_++;
 
@@ -398,13 +412,18 @@ public:
   {
     check_load();
 
-    int i = find_pair<true, true>(key);
+    int first_clearcell = -1;
+    int i = find_pair<true, true>(key, &first_clearcell);
 
     if (value) {
       *value = &table_[i].value;
     }
 
     if (!used_[i]) {
+      if (first_clearcell != -1) {
+        i = first_clearcell;
+        clear_.set(first_clearcell, false);
+      }
       // make life easier to client code by
       // default initializing the value, which allows them to
       // use assignment operator instead of placement new.
@@ -423,7 +442,7 @@ public:
   }
 
   /* Undefined behavior if key is not in map, check existence with .contains(). */
-  Value &lookup(const Key &key) const
+  Value &lookup(const Key &key)
   {
     int i = find_pair<true, false>(key);
     return table_[i].value;
@@ -438,6 +457,7 @@ public:
     }
 
     this->used_.set(i, false);
+    this->clear_.set(i, true);
 
     if (out_value) {
       *out_value = std::move(table_[i].value);
@@ -467,6 +487,8 @@ private:
   std::span<Pair> table_;
   char *static_storage_[real_static_size * sizeof(Pair)];
   MyBoolVector used_;
+  // used to mark deleted tombstones
+  MyBoolVector clear_;
   int cur_size_ = 0;
   int used_count_ = 0;
 
@@ -475,6 +497,8 @@ private:
     hash::HashInt size = hash::HashInt(hashsizes[cur_size_]);
     used_.resize(size);
     used_.clear();
+    clear_.resize(size);
+    clear_.clear();
   }
 
   template <bool overwrite = false> bool add_intern(const Key &key, const Value &value)
@@ -518,16 +542,26 @@ private:
   }
 
   template <bool check_key_equals = true, bool return_unused_cell = false>
-  ATTR_NO_OPT int find_pair(const Key &key) const
+  int find_pair(const Key &key, int *first_clearcell = nullptr)
   {
     const hash::HashInt size = hash::HashInt(table_.size());
     hash::HashInt hashval = hash::hash(key) % size;
     hash::HashInt h = hashval, probe = hashval;
 
+    int count = 0;
     while (1) {
+      if (count > size) {
+        clear_clearcells();
+        return find_pair<check_key_equals, return_unused_cell>(key, first_clearcell);
+      }
+
       if (!used_[h]) {
         if constexpr (return_unused_cell) {
-          return h;
+          if (!clear_[h]) {
+            return h;
+          } else if (first_clearcell) {
+            *first_clearcell = h;
+          }
         } else {
           return -1;
         }
@@ -545,7 +579,7 @@ private:
     }
   }
 
-  inline ATTR_NO_OPT bool check_load()
+  inline bool check_load()
   {
     if (used_count_ > table_.size() / 3) {
       realloc_to_size(table_.size() * 3);
@@ -572,10 +606,16 @@ private:
     // reset used map and count
     used_count_ = 0;
     used_.clear();
+    clear_.clear();
     return *this;
   }
 
-  inline ATTR_NO_OPT void realloc_to_size(size_t size)
+  void clear_clearcells()
+  {
+    realloc_to_size(table_.size());
+  }
+
+  inline void realloc_to_size(size_t size)
   {
     size_t old_size = hashsizes[cur_size_];
     while (hashsizes[cur_size_] < size) {
@@ -594,6 +634,8 @@ private:
     used_count_ = 0;
     used_.resize(newsize);
     used_.clear();
+    clear_.resize(newsize);
+    clear_.clear();
 
     for (int i = 0; i < old.size(); i++) {
       if (old_used[i]) {
