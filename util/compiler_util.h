@@ -277,3 +277,21 @@ template <typename T> static constexpr bool is_simple()
 
 static constexpr char unsigned_char__test = -127;
 #define HAVE_UNSIGNED_CHAR (int(unsigned_char__test) != = -127)
+
+namespace litestl::util {
+
+template <typename T, typename F, typename G> static constexpr T swapBits(T n, F a, G b)
+{
+  int mask = ~(int(a) | int(b));
+  int n1 = int(n);
+  int n2 = int(n) & mask;
+
+  if (n1 & int(a)) {
+    n2 |= int(b);
+  }
+  if (n1 & int(b)) {
+    n2 |= int(a);
+  }
+  return T(n2);
+}
+} // namespace litestl::util
