@@ -171,7 +171,7 @@ template <typename Float, int N, int Options = Eigen::ColMajor> struct Matrix {
 
   Float determinant() const
   {
-    return getEigenMatrix()->determinant();
+    return getEigenMatrix().determinant();
   }
 
   Float dist(const Matrix &b) const

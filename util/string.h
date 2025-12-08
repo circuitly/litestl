@@ -365,13 +365,25 @@ public:
 
     return *this;
   }
+  String operator+(Char b) const
+  {
+    return String(*this).operator+=(b);
+  }
+  String &operator+=(Char b)
+  {
+    ensure_size(size_ + 1);
+    data_[size_++] = b;
+    data_[size_] = 0;
+    return *this;
+  }
 
   size_t size() const
   {
     return size_;
   }
 
-  bool starts_with(const String &b) const {
+  bool starts_with(const String &b) const
+  {
     if (size_ < b.size_) {
       return false;
     }
@@ -382,7 +394,8 @@ public:
     }
     return true;
   }
-  bool ends_with(const String &b) const {
+  bool ends_with(const String &b) const
+  {
     if (size_ < b.size_) {
       return false;
     }
@@ -391,8 +404,9 @@ public:
         return false;
       }
     }
-    return true;  
+    return true;
   }
+
 private:
   /* Ensures data has at least size+1 elements, does not set size_*/
   void ensure_size(int size)

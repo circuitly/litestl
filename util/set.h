@@ -192,7 +192,7 @@ struct alignas(ContainerAlign<Key>()) Set {
     return false;
   }
 
-  bool contains(const Key &key)
+  bool contains(const Key &key) const
   {
     int first_clearcell = -1;
     int i = find_cell(key, first_clearcell);
@@ -235,6 +235,12 @@ private:
     }
   }
 
+  int find_cell(const Key &key, int &first_clearcell) const
+  {
+    return const_cast<Set *>(this)->find_cell<false>(key, first_clearcell);
+  }
+
+  template <bool realloc_clearcells = true>
   int find_cell(const Key &key, int &first_clearcell)
   {
     const hash::HashInt size = hash::HashInt(table_.size());
@@ -245,8 +251,10 @@ private:
     while (1) {
       if (count > size) {
         // clearcell chain is full
-        clear_clearcell();
-        return find_cell(key, first_clearcell);
+        if constexpr (realloc_clearcells) {
+          clear_clearcell();
+        }
+        return find_cell<realloc_clearcells>(key, first_clearcell);
       }
       // hit free cell?
       if (!usedmap_[h]) {

@@ -18,7 +18,7 @@ int main()
 
     mat4 m4;
     mat3 m3;
-    float3 v;
+    double3 v;
 
     m4.identity();
     m3.identity();
@@ -29,7 +29,7 @@ int main()
       }
     }
 
-    v = m4 * float3(1.0f);
+    v = m4 * double3(1.0f);
 
     mat4 m5(m4);
     m5.invert();

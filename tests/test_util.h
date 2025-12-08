@@ -13,7 +13,7 @@
 extern int retval;
 static bool test_end()
 {
-  return retval || litestl::alloc::print_blocks();
+  return retval || litestl::alloc::print_blocks(false);
 }
 
 static bool test_snapshot(const char *name, const char *data, bool update_snapshot)

@@ -29,7 +29,7 @@ int test_remove()
     if (rand.get_float() > 0.75) {
       int r = rand.get_int() % keys.size();
       set.remove(keys[r]);
-      keys.removeAt(r, true);
+      keys.remove_at(r, true);
     }
   }
 
