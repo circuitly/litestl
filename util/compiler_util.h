@@ -117,6 +117,7 @@ static inline const void *pointer_offset(const void *ptr, int n)
 #define MAKE_FLAGS_CLASS(Name, Enum, Storage)                                            \
   struct Name {                                                                          \
     using enum Enum;                                                                     \
+                                                                                         \
     constexpr operator Enum()                                                            \
     {                                                                                    \
       return Enum(val_);                                                                 \
@@ -124,10 +125,10 @@ static inline const void *pointer_offset(const void *ptr, int n)
     constexpr Name() : val_(0)                                                           \
     {                                                                                    \
     }                                                                                    \
-    constexpr Name(Enum f) : val_(int(f))                                                \
+    constexpr Name(Enum f) : val_(Storage(f))                                            \
     {                                                                                    \
     }                                                                                    \
-    constexpr Name(int val) : val_(val)                                                  \
+    constexpr Name(Storage val) : val_(val)                                              \
     {                                                                                    \
     }                                                                                    \
     constexpr Name(const Name &b) : val_(b.val_)                                         \
@@ -135,11 +136,11 @@ static inline const void *pointer_offset(const void *ptr, int n)
     }                                                                                    \
     constexpr operator bool() const                                                      \
     {                                                                                    \
-      return bool(int(val_));                                                            \
+      return bool(Storage(val_));                                                        \
     }                                                                                    \
-    constexpr explicit operator int() const                                              \
+    constexpr explicit operator Storage() const                                          \
     {                                                                                    \
-      return int(val_);                                                                  \
+      return Storage(val_);                                                              \
     }                                                                                    \
     constexpr bool operator==(Name b) const                                              \
     {                                                                                    \
@@ -151,23 +152,23 @@ static inline const void *pointer_offset(const void *ptr, int n)
     }                                                                                    \
     constexpr Name operator&(Name b) const                                               \
     {                                                                                    \
-      return Name(int(val_) & int(b.val_));                                              \
+      return Name(Storage(val_) & Storage(b.val_));                                      \
     }                                                                                    \
     constexpr Name operator|(Name b) const                                               \
     {                                                                                    \
-      return Name(int(val_) | int(b.val_));                                              \
+      return Name(Storage(val_) | Storage(b.val_));                                      \
     }                                                                                    \
     constexpr Name operator|(Enum b) const                                               \
     {                                                                                    \
-      return Name(int(val_) | int(b));                                                   \
+      return Name(Storage(val_) | Storage(b));                                           \
     }                                                                                    \
     constexpr Name operator&(Enum b) const                                               \
     {                                                                                    \
-      return Name(int(val_) & int(b));                                                   \
+      return Name(Storage(val_) & Storage(b));                                           \
     }                                                                                    \
     constexpr Name operator^(Enum b) const                                               \
     {                                                                                    \
-      return Name(int(val_) ^ int(b));                                                   \
+      return Name(Storage(val_) ^ Storage(b));                                           \
     }                                                                                    \
     constexpr Name &operator|=(Name b)                                                   \
     {                                                                                    \
@@ -186,31 +187,36 @@ static inline const void *pointer_offset(const void *ptr, int n)
     }                                                                                    \
     constexpr Name operator^(Name b) const                                               \
     {                                                                                    \
-      return Name(int(val_) ^ int(b.val_));                                              \
+      return Name(Storage(val_) ^ Storage(b.val_));                                      \
     }                                                                                    \
     constexpr Name operator~() const                                                     \
     {                                                                                    \
-      return Name(~int(val_));                                                           \
+      return Name(~Storage(val_));                                                       \
     }                                                                                    \
     const Name &operator~()                                                              \
     {                                                                                    \
-      val_ = ~val_;                                                                      \
+      val_ = ~int(val_);                                                                 \
       return *this;                                                                      \
     }                                                                                    \
     Storage val_;                                                                        \
   };                                                                                     \
   static Enum operator|(Enum a, Enum b)                                                  \
   {                                                                                      \
-    return Enum(int(a) | int(b));                                                        \
+    return Enum(Storage(a) | Storage(b));                                                \
   }                                                                                      \
   static Enum operator&(Enum a, Enum b)                                                  \
   {                                                                                      \
-    return Enum(int(a) & int(b));                                                        \
+    return Enum(Storage(a) & Storage(b));                                                \
   }                                                                                      \
   static Enum operator^(Enum a, Enum b)                                                  \
   {                                                                                      \
-    return Enum(int(a) ^ int(b));                                                        \
-  }
+    return Enum(Storage(a) ^ Storage(b));                                                \
+  }                                                                                      \
+  static Enum operator~(Enum a)                                                          \
+  {                                                                                      \
+    return Enum(~Storage(a));                                                            \
+  }                                                                                      \
+  struct _##Name##Semi_Placeholder {}
 
 /* Example:
     enum class _AttrFlag {
@@ -259,6 +265,7 @@ static inline const void *pointer_offset(const void *ptr, int n)
     }                                                                                    \
     Storage val_;                                                                        \
   }
+
 namespace litestl::util {
 namespace detail {
 template <typename T> static constexpr bool is_simple(T *)

@@ -11,7 +11,8 @@
 #include "util/compiler_util.h"
 
 namespace litestl::util {
-template <typename Char, int static_size = 32> struct String;
+// reserve enough space for a guid
+template <typename Char, int static_size = 40> struct String;
 
 template <size_t N> struct StrLiteral {
   constexpr StrLiteral(const char (&str)[N])

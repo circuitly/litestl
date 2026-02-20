@@ -3,6 +3,10 @@ include(CTest)
 macro(test file extra_lib)
 set(test_target "/usr/bin/g++
  ${file} -o ${file}_out")
+# testing with cross-compiling (i.e. we aren't using wasm) is annoying
+# just do it manually
+# TODO: find a way to use toolchains properly for cross-compiling
+
 #add_executable(${target} "${file}")
 #target_link_libraries(${target} util ${extra_lib} math platform)
 #target_include_directories(${target} PUBLIC util)
@@ -12,8 +16,6 @@ set(test_target "/usr/bin/g++
 #target_include_directories(${target} PUBLIC binding_generators)
 #target_include_directories(${target} PUBLIC binding)
 
-# testing with cross-compiling (i.e. we aren't using wasm) is annoying
-# just do it manually
 set(basedir "../../..")
 set(testflags -I${basedir}/litestl -I${basedir}/source -I${basedir} 
               -I${basedir}/litestl/extern

@@ -23,9 +23,7 @@ namespace litestl::util {
 
 template <typename BASE, typename ITEM>
 concept VectorSortComparator = requires(BASE base, const ITEM &a, const ITEM &b) {
-  {
-    base(a, b)
-  } -> std::convertible_to<std::int32_t>;
+  { base(a, b) } -> std::convertible_to<std::int32_t>;
 };
 
 namespace detail {
@@ -336,11 +334,13 @@ public:
     data_ = static_storage();
   }
 
-  operator span() {
+  operator span()
+  {
     return std::span<T>(data_, size_);
   }
-  
-  operator span() const {
+
+  operator span() const
+  {
     return std::span<const T>(data_, size_);
   }
 
@@ -626,12 +626,23 @@ public:
     new (static_cast<void *>(&append_intern())) T(std::forward<T &&>(value));
   }
 
+  void prepend(const T &value)
+  {
+    new (static_cast<void *>(&prepend_intern())) T(value);
+  }
+
+  void prepend(T &&value)
+  {
+    new (static_cast<void *>(&prepend_intern())) T(std::forward<T &&>(value));
+  }
+
   void ensure_capacity(size_t size)
   {
     ensure_size(size);
   }
 
-  template <bool construct_destruct = true, bool shrink_only = false> void resize(size_t newsize)
+  template <bool construct_destruct = true, bool shrink_only = false>
+  void resize(size_t newsize)
   {
     size_t remain = 0;
     if (newsize > size_) {
@@ -705,6 +716,23 @@ private:
         data_[i].~T();
       }
     }
+  }
+
+  ATTR_NO_OPT T &prepend_intern()
+  {
+    ensure_size(size_ + 1);
+
+    if constexpr (is_simple<T>()) {
+      memmove(
+          static_cast<void *>(data_), static_cast<void *>(data_ + 1), sizeof(T) * size_);
+    } else {
+      for (int i = size_; i > 0; i--) {
+        data_[i] = std::move(data_[i - 1]);
+      }
+    }
+
+    size_++;
+    return data_[0];
   }
 
   ATTR_NO_OPT T &append_intern()
