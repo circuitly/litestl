@@ -91,15 +91,15 @@ static inline const void *pointer_offset(const void *ptr, int n)
   {                                                                                      \
     return T(uint64_t(a) ^ uint64_t(b));                                                 \
   }                                                                                      \
-  static T operator^=(T a, T flag)                                                       \
+  static constexpr T operator^=(T a, T flag)                                             \
   {                                                                                      \
     return T(uint64_t(a) ^ uint64_t(flag));                                              \
   }                                                                                      \
-  static T operator|=(T a, T flag)                                                       \
+  static constexpr T operator|=(T a, T flag)                                             \
   {                                                                                      \
     return T(uint64_t(a) | uint64_t(flag));                                              \
   }                                                                                      \
-  static T operator&=(T a, T flag)                                                       \
+  static constexpr T operator&=(T a, T flag)                                             \
   {                                                                                      \
     return T(uint64_t(a) & uint64_t(flag));                                              \
   }
@@ -216,7 +216,7 @@ static inline const void *pointer_offset(const void *ptr, int n)
   {                                                                                      \
     return Enum(~Storage(a));                                                            \
   }                                                                                      \
-  struct _##Name##Semi_Placeholder {}
+  //struct _##Name##Semi_Placeholder {}
 
 /* Example:
     enum class _AttrFlag {

@@ -8,7 +8,7 @@ set(SRC
   common.cc
 )
 
-if (NOT BUILD_WASM)
+if (NOT BUILD_WASM AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
 set(SRC 
     ${SRC}
     win32.cc

@@ -7,6 +7,7 @@
 #include "compiler_util.h"
 #include <atomic>
 #include <mutex>
+#include <type_traits>
 
 namespace litestl::util {
 namespace detail {
@@ -15,40 +16,27 @@ template <typename T> struct Link {
 };
 } // namespace detail
 
-template <typename N, typename B> concept LinkedListNode = requires(N *node, B data)
-{
-  {
-    node->next
-  }
-  ->std::same_as<N *&>;
-  {
-    node->prev
-  }
-  ->std::same_as<N *&>;
-  {
-    node->data()
-  }
-  ->std::same_as<B>;
-
-  {
-    N::wrapData(data)
-  }
-  ->std::same_as<N *>;
+template <typename NodeData, typename Node>
+concept LinkedListNode = requires(Node *node, NodeData data) {
+  { std::remove_reference_t<decltype(node->next)>() } -> std::same_as<Node *>;
+  { std::remove_reference_t<decltype(node->prev)>() } -> std::same_as<Node *>;
+  { node->data() } -> std::same_as<NodeData>;
+  { Node::wrapData(data) } -> std::same_as<Node *>;
 };
 
-template <typename T, LinkedListNode<T> N> struct AtomicLinkedList {
-  N *first = {nullptr};
-  N *last = {nullptr};
+template <typename T, LinkedListNode<T> NodeData=T*> struct AtomicLinkedList {
+  T *first = {nullptr};
+  T *last = {nullptr};
   std::recursive_mutex mutex;
 
   AtomicLinkedList()
   {
   }
 
-  N *push(T &&data)
+  T *push(NodeData &&data)
   {
     std::lock_guard guard(mutex);
-    N *node = N::wrapData(data);
+    T *node = T::wrapData(data);
 
     if (!first) {
       first = last = node;
@@ -62,20 +50,20 @@ template <typename T, LinkedListNode<T> N> struct AtomicLinkedList {
     return node;
   }
 
-  void remove(N *node)
+  void remove(T *node)
   {
     std::lock_guard guard(mutex);
     if (node->prev) {
-        node->prev->next = node->next;
+      node->prev->next = node->next;
     }
     if (node->next) {
-        node->next->prev = node->prev;
+      node->next->prev = node->prev;
     }
     if (node == first) {
-        first = node->next;
+      first = node->next;
     }
     if (node == last) {
-        last = node->prev;
+      last = node->prev;
     }
   }
 };

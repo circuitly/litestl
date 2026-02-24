@@ -1,14 +1,9 @@
 #include "atomicLinkedList.h"
-#include "compiler_util.h"
-#include <algorithm>
+// #include "compiler_util.h"
 #include <atomic>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <memory>
 #include <mutex>
-#include <thread>
-#include <vector>
 
 #ifdef WASM
 #include "wasm.h"
@@ -21,17 +16,16 @@
 #define FREE MAKE_TAG('f', 'r', 'e', 'e')
 
 std::atomic<int> memorySize = {0};
-std::atomic<int> permanentMemorySize = {0}; //size of things allocated when disableLeakTracking > 0
+std::atomic<int> permanentMemorySize = {
+    0}; // size of things allocated when disableLeakTracking > 0
 std::atomic<int> allocatingPermanent = {0};
 
-enum {
-  MEM_PERMANENT = 1<<0
-};
+enum { MEM_PERMANENT = 1 << 0 };
 
 struct MemHead {
   int tag1;
-  int tag2: 24;
-  int flag: 8;
+  int tag2 : 24;
+  int flag : 8;
 
   // MemHeads are their own nodes
   struct MemHead *next, *prev;
@@ -54,7 +48,8 @@ struct MemHead {
 };
 static_assert(sizeof(MemHead) % 8 == 0);
 
-using MemList = litestl::util::AtomicLinkedList<MemHead *, MemHead>;
+using MemHeadPtr = MemHead *;
+using MemList = litestl::util::AtomicLinkedList<MemHead, MemHead *>;
 
 /**
  * Each thread creates its own list of memory blocks.
@@ -218,10 +213,12 @@ const char *getMemoryTag(void *vmem)
 } // namespace detail
 #endif
 
-void pushPermanentAlloc() {
+void pushPermanentAlloc()
+{
   allocatingPermanent.fetch_add(1);
 }
-void popPermanentAlloc() {
+void popPermanentAlloc()
+{
   allocatingPermanent.fetch_sub(1);
 }
 } // namespace litestl::alloc
